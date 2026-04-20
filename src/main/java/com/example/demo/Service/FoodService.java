@@ -13,8 +13,10 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class FoodService {
+    public FoodService(FoodRepository foodRepository) {
+        this.foodRepository = foodRepository;
+    }
     private final FoodRepository foodRepository;
 
     public List<Food> getFoodsByCategory(String category) {

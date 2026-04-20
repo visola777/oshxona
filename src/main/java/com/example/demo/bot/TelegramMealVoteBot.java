@@ -11,7 +11,8 @@ import com.example.demo.entity.TelegramUser;
 import com.example.demo.entity.VoteCategory;
 import com.example.demo.Service.VotingService.VoteResult;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
@@ -31,8 +32,8 @@ import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
-@Slf4j
 public class TelegramMealVoteBot extends TelegramLongPollingBot {
+    private static final Logger log = LoggerFactory.getLogger(TelegramMealVoteBot.class);
     private final BotConfig botConfig;
     private final BotMessages botMessages;
     private final BotUserService userService;

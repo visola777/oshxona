@@ -3,17 +3,20 @@ package com.example.demo.Service;
 import com.example.demo.entity.Dish;
 import com.example.demo.entity.Vote;
 import com.example.demo.entity.VoteCategory;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class StatisticsService {
     private final VotingService votingService;
     private final DishService dishService;
+
+    public StatisticsService(VotingService votingService, DishService dishService) {
+        this.votingService = votingService;
+        this.dishService = dishService;
+    }
 
     public String renderGlobalTop(int limit, String languageCode) {
         List<Object[]> rows = votingService.getGlobalTopDishes();

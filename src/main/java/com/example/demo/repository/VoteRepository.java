@@ -16,6 +16,7 @@ public interface VoteRepository extends JpaRepository<Vote, Long> {
     Optional<Vote> findByUserIdAndVoteDateAndCategory(Long userId, LocalDate voteDate, String category);
     List<Vote> findAllByUserIdOrderByVoteDateDesc(Long userId);
     List<Vote> findAllByVoteDate(LocalDate voteDate);
+    boolean existsByUserIdAndFoodName(Long userId, String foodName);
 
     @Query("SELECT v.dish, COUNT(v) FROM Vote v GROUP BY v.dish ORDER BY COUNT(v) DESC")
     List<Object[]> findGlobalTopDishes();

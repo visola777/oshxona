@@ -13,8 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 
 @Service
-@RequiredArgsConstructor
 public class VoteService {
+    public VoteService(VoteRepository voteRepository, FoodRepository foodRepository) {
+        this.voteRepository = voteRepository;
+        this.foodRepository = foodRepository;
+    }
     private final VoteRepository voteRepository;
     private final FoodRepository foodRepository;
 

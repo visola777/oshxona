@@ -6,7 +6,6 @@ package com.example.demo.DATA;
 
 import com.example.demo.Service.MealDishService;
 import com.example.demo.entity.Dish;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -15,10 +14,13 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 @Component
-@RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
     private final MealDishService dishService;
+    
+    public DataInitializer(MealDishService dishService) {
+        this.dishService = dishService;
+    }
 
     @Override
     public void run(String... args) {

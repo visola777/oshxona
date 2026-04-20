@@ -3,7 +3,6 @@ package com.example.demo.Service;
 import com.example.demo.config.BotConfig;
 import com.example.demo.entity.TelegramUser;
 import com.example.demo.repository.TelegramUserRepository;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -13,15 +12,19 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class BotUserService {
     private static final Logger log = LoggerFactory.getLogger(BotUserService.class);
     private final TelegramUserRepository userRepository;
     private final BotConfig botConfig;
 
+    public BotUserService(TelegramUserRepository userRepository, BotConfig botConfig) {
+        this.userRepository = userRepository;
+        this.botConfig = botConfig;
+    }
+
     @Transactional
     public TelegramUser registerOrUpdate(Long telegramId, String username, String firstName, String lastName, String languageCode) {
-        return userRepository.findByTelegramId(telegramId)
+        TelegramUser user = userRepository.findByTelegramId(telegramId)
                 .map(existing -> {
                     existing.setUsername(username);
                     existing.setFirstName(firstName);
@@ -30,17 +33,19 @@ public class BotUserService {
                     existing.setLastSeenAt(LocalDateTime.now());
                     return existing;
                 })
-                .orElseGet(() -> TelegramUser.builder()
-                        .telegramId(telegramId)
-                        .username(username)
-                        .firstName(firstName)
-                        .lastName(lastName)
-                        .languageCode(languageCode != null ? languageCode : botConfig.getDefaultLanguage())
-                        .joinedAt(LocalDateTime.now())
-                        .lastSeenAt(LocalDateTime.now())
-                        .admin(botConfig.isAdmin(telegramId))
-                        .build())
-                .tap(userRepository::save);
+                .orElseGet(() -> {
+                    TelegramUser newUser = new TelegramUser();
+                    newUser.setTelegramId(telegramId);
+                    newUser.setUsername(username);
+                    newUser.setFirstName(firstName);
+                    newUser.setLastName(lastName);
+                    newUser.setLanguageCode(languageCode != null ? languageCode : botConfig.getDefaultLanguage());
+                    newUser.setJoinedAt(LocalDateTime.now());
+                    newUser.setLastSeenAt(LocalDateTime.now());
+                    newUser.setAdmin(botConfig.isAdmin(telegramId));
+                    return newUser;
+                });
+        return userRepository.save(user);
     }
 
     public List<TelegramUser> getAllUsers() {

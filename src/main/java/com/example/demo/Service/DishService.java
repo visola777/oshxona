@@ -1,4 +1,4 @@
-package com.example.demo.service;
+package com.example.demo.Service;
 
 import com.example.demo.entity.Dish;
 import com.example.demo.entity.VoteCategory;
@@ -13,8 +13,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class DishService {
+    public DishService(DishRepository dishRepository) {
+        this.dishRepository = dishRepository;
+    }
     private static final Logger log = LoggerFactory.getLogger(DishService.class);
     private final DishRepository dishRepository;
 
@@ -56,13 +58,13 @@ public class DishService {
     }
 
     private Dish createDish(String name, String category, String url, String description) {
-        return Dish.builder()
-                .name(name)
-                .category(category)
-                .photoUrl(url)
-                .description(description)
-                .active(true)
-                .totalVotes(0)
-                .build();
+        Dish dish = new Dish();
+        dish.setName(name);
+        dish.setCategory(category);
+        dish.setPhotoUrl(url);
+        dish.setDescription(description);
+        dish.setActive(true);
+        dish.setTotalVotes(0);
+        return dish;
     }
 }

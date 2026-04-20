@@ -3,7 +3,6 @@ package com.example.demo.Service;
 import com.example.demo.entity.Dish;
 import com.example.demo.entity.VoteCategory;
 import com.example.demo.repository.DishRepository;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -13,10 +12,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class MealDishService {
     private static final Logger log = LoggerFactory.getLogger(MealDishService.class);
     private final DishRepository dishRepository;
+
+    public MealDishService(DishRepository dishRepository) {
+        this.dishRepository = dishRepository;
+    }
 
     public List<Dish> getActiveDishesByCategory(String category) {
         return dishRepository.findAllByCategoryIgnoreCaseAndActiveTrueOrderByTotalVotesDesc(category);
@@ -52,13 +54,13 @@ public class MealDishService {
     }
 
     private Dish defaultDish(String name, String category, String imageUrl, String description) {
-        return Dish.builder()
-                .name(name)
-                .category(category)
-                .photoUrl(imageUrl)
-                .description(description)
-                .active(true)
-                .totalVotes(0)
-                .build();
+        Dish dish = new Dish();
+        dish.setName(name);
+        dish.setCategory(category);
+        dish.setPhotoUrl(imageUrl);
+        dish.setDescription(description);
+        dish.setActive(true);
+        dish.setTotalVotes(0);
+        return dish;
     }
 }

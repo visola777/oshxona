@@ -6,18 +6,23 @@ import com.example.demo.entity.VoteCategory;
 import com.example.demo.repository.DishRepository;
 import com.example.demo.repository.VoteRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class VotingService {
+    public VotingService(VoteRepository voteRepository, DishRepository dishRepository) {
+        this.voteRepository = voteRepository;
+        this.dishRepository = dishRepository;
+    }
+    private static final Logger log = LoggerFactory.getLogger(VotingService.class);
     private final VoteRepository voteRepository;
     private final DishRepository dishRepository;
 
@@ -82,13 +87,12 @@ public class VotingService {
         dish.setTotalVotes(dish.getTotalVotes() + 1);
         dishRepository.save(dish);
 
-        Vote vote = Vote.builder()
-                .userId(telegramUserId)
-                .dish(dish)
-                .voteDate(LocalDate.now())
-                .category(category.name())
-                .createdAt(LocalDate.now())
-                .build();
+        Vote vote = new Vote();
+        vote.setUserId(telegramUserId);
+        vote.setDish(dish);
+        vote.setVoteDate(LocalDate.now());
+        vote.setCategory(category.name());
+        vote.setVotedAt(LocalDateTime.now());
         voteRepository.save(vote);
 
         log.info("New vote recorded: user={} dish={} category={}", telegramUserId, dish.getName(), category);

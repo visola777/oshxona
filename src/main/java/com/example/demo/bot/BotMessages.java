@@ -23,8 +23,7 @@ public class BotMessages {
                     "• Har bir kishi har kuni har bir kategoriya uchun bitta ovoz berishi mumkin.\n" +
                     "• Ovozlar 00:00 da yangilanadi va yangi kun boshlanadi.\n" +
                     "• 11:00 gacha ovozingizni o'zgartirishingiz mumkin.\n" +
-                    "• " + VoteCategory.BREAKFAST.label(languageCode) + ", " + VoteCategory.LUNCH.label(languageCode) + " va " + VoteCategory.SNACK.label(languageCode) + " mustaqil.
-";
+                    "• " + VoteCategory.BREAKFAST.label(languageCode) + ", " + VoteCategory.LUNCH.label(languageCode) + " va " + VoteCategory.SNACK.label(languageCode) + " mustaqil.";
         }
         return "ℹ️ *Help & Rules*\n\n" +
                 "• Each user can vote once per day in every category.\n" +
