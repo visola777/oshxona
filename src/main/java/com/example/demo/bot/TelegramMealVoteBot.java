@@ -64,10 +64,15 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
+        log.info("📩 Update received from user: {}", update.hasMessage() ? update.getMessage().getFrom().getId() : "unknown");
+
         try {
             if (update.hasMessage() && update.getMessage().hasText()) {
+                String text = update.getMessage().getText().trim();
+                log.info("📝 Text message received: '{}'", text);   // <-- muhim log
                 handleTextMessage(update.getMessage());
             } else if (update.hasCallbackQuery()) {
+                log.info("🔘 Callback received: {}", update.getCallbackQuery().getData());
                 handleCallbackQuery(update);
             }
         } catch (Exception ex) {
@@ -85,7 +90,10 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
                 from.getLastName(), from.getLanguageCode());
         String text = message.getText().trim();
         switch (text.split(" ")[0].toLowerCase()) {
-            case "/start" -> sendMainMenu(message.getChatId(), user);
+            case "/start" -> {
+                log.info("🚀 /start command detected - calling sendMainMenu");
+                sendMainMenu(message.getChatId(), user);
+            }
             case "/help" ->
                 sendText(message.getChatId(), botMessages.help(user.getLanguageCode()), user.getLanguageCode());
             case "/myvotes" -> sendText(message.getChatId(),
@@ -97,8 +105,10 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
             case "/broadcast" -> handleBroadcast(message, user);
             case "/export" -> handleExport(message, user);
             case "/reset_today" -> handleResetToday(message, user);
-            default -> sendText(message.getChatId(), "Use /start to open the menu or /help for instructions.",
-                    user.getLanguageCode());
+            default -> {
+                log.warn("Unknown command: {}", text);
+            sendText(message.getChatId(), "Use /start to open the menu or /help for instructions.",
+                    user.getLanguageCode());}
         }
     }
 
@@ -147,10 +157,12 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
     }
 
     private void sendMainMenu(Long chatId, TelegramUser user) {
+        log.info("📤 Sending main menu to chatId: {}", chatId);
         String menu = botMessages.welcome(user.getFirstName() != null ? user.getFirstName() : "friend",
                 user.getLanguageCode());
         sendText(chatId, menu, user.getLanguageCode());
         sendText(chatId, buildMenuText(user.getLanguageCode()), user.getLanguageCode());
+        log.info("✅ Main menu sent successfully");
     }
 
     private void sendCategoryList(Long chatId, TelegramUser user, String categoryKey) {
@@ -243,14 +255,40 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
             sendText(chatId, "You are not authorized to use admin commands.", user.getLanguageCode());
             return;
         }
-        String message = "🔧 Admin panel:\n" +
-                "/export - Export all votes as CSV\n" +
-                "/reset_today - Reset today\'s votes\n" +
-                "/broadcast <message> - Broadcast text to all users\n" +
-                "/admin - Refresh this panel";
-        sendText(chatId, message, user.getLanguageCode());
+
+        String message = """
+        🔧 Admin panel:
+
+        /export - Export all votes as CSV
+        /reset_today - Reset today's votes
+        /broadcast <i>message</i> - Broadcast text to all users
+        /admin - Refresh this panel
+        """;
+
+        // MarkdownV2 dan foydalanib, xavfsizroq qilamiz
+        sendTextSafe(chatId, message, user.getLanguageCode());
     }
 
+    private void sendTextSafe(Long chatId, String text, String languageCode) {
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId.toString());
+        message.setText(text);
+        message.setParseMode("MarkdownV2");   // yoki "HTML" ni sinab ko'rish mumkin
+
+        try {
+            execute(message);
+            log.info("✅ Admin menu sent successfully");
+        } catch (TelegramApiException e) {
+            log.error("❌ Failed to send admin menu: {}", e.getMessage());
+
+            // Agar Markdown xatosi bo'lsa, oddiy text bilan qayta yuborish
+            try {
+                message.setParseMode(null);
+                message.setText(text.replace("<i>", "").replace("</i>", ""));
+                execute(message);
+            } catch (Exception ignored) {}
+        }
+    }
     private void handleBroadcast(Message message, TelegramUser user) {
         if (!userService.isAdmin(user.getTelegramId())) {
             sendText(message.getChatId(), "Unauthorized.", user.getLanguageCode());
