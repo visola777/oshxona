@@ -16,14 +16,15 @@ public class UserService {
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
     private final TelegramUserRepository userRepository;
     private final BotConfig botConfig;
-    
+
     public UserService(TelegramUserRepository userRepository, BotConfig botConfig) {
         this.userRepository = userRepository;
         this.botConfig = botConfig;
     }
 
     @Transactional
-    public TelegramUser registerOrUpdateUser(Long telegramId, String username, String firstName, String lastName, String languageCode) {
+    public TelegramUser registerOrUpdateUser(Long telegramId, String username, String firstName, String lastName,
+            String languageCode) {
         TelegramUser user = userRepository.findByTelegramId(telegramId)
                 .map(existing -> {
                     existing.setUsername(username);
@@ -56,6 +57,7 @@ public class UserService {
     }
 
     public boolean isAdmin(Long telegramId) {
-        return userRepository.findByTelegramId(telegramId).map(TelegramUser::isAdmin).orElse(botConfig.isAdmin(telegramId));
+        return userRepository.findByTelegramId(telegramId).map(TelegramUser::isAdmin)
+                .orElse(botConfig.isAdmin(telegramId));
     }
 }

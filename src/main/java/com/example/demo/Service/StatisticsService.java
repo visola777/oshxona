@@ -29,7 +29,8 @@ public class StatisticsService {
             Object[] row = rows.get(i);
             Dish dish = (Dish) row[0];
             long count = (Long) row[1];
-            sb.append(formatRank(i + 1)).append(" ").append(dish.getName()).append(" — ").append(count).append(" votes\n");
+            sb.append(formatRank(i + 1)).append(" ").append(dish.getName()).append(" — ").append(count)
+                    .append(" votes\n");
         }
         return sb.toString();
     }
@@ -48,7 +49,8 @@ public class StatisticsService {
             if (!dish.getCategory().equalsIgnoreCase(category)) {
                 continue;
             }
-            sb.append(formatRank(i + 1)).append(" ").append(dish.getName()).append(" — ").append(count).append(" votes\n");
+            sb.append(formatRank(i + 1)).append(" ").append(dish.getName()).append(" — ").append(count)
+                    .append(" votes\n");
         }
         if (sb.toString().equals("📅 Today's top dishes:\n\n")) {
             return getEmptyStats(languageCode);
@@ -68,7 +70,8 @@ public class StatisticsService {
                 ? "📌 Sizning oxirgi ovozlaringiz:\n\n"
                 : "📌 Your recent votes:\n\n");
 
-        history.stream().limit(20).forEach(vote -> sb.append(vote.getVoteDate()).append(" — ").append(vote.getDish().getName()).append(" (" + vote.getCategory() + ")\n"));
+        history.stream().limit(20).forEach(vote -> sb.append(vote.getVoteDate()).append(" — ")
+                .append(vote.getDish().getName()).append(" (" + vote.getCategory() + ")\n"));
         return sb.toString();
     }
 

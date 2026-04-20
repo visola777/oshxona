@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "dishes", uniqueConstraints = @UniqueConstraint(columnNames = {"name"}))
+@Table(name = "dishes", uniqueConstraints = @UniqueConstraint(columnNames = { "name" }))
 public class Dish {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,7 +34,8 @@ public class Dish {
     public Dish() {
     }
 
-    public Dish(Long id, String name, String category, String photoUrl, String description, boolean active, int totalVotes, LocalDateTime createdAt) {
+    public Dish(Long id, String name, String category, String photoUrl, String description, boolean active,
+            int totalVotes, LocalDateTime createdAt) {
         this.id = id;
         this.name = name;
         this.category = category;

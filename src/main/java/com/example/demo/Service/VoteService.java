@@ -7,7 +7,6 @@ import com.example.demo.entity.Vote;
 import com.example.demo.repository.FoodRepository;
 
 import com.example.demo.repository.VoteRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
@@ -18,6 +17,7 @@ public class VoteService {
         this.voteRepository = voteRepository;
         this.foodRepository = foodRepository;
     }
+
     private final VoteRepository voteRepository;
     private final FoodRepository foodRepository;
 

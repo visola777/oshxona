@@ -5,7 +5,6 @@ import com.example.demo.entity.Vote;
 import com.example.demo.entity.VoteCategory;
 import com.example.demo.repository.DishRepository;
 import com.example.demo.repository.VoteRepository;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -22,6 +21,7 @@ public class VotingService {
         this.voteRepository = voteRepository;
         this.dishRepository = dishRepository;
     }
+
     private static final Logger log = LoggerFactory.getLogger(VotingService.class);
     private final VoteRepository voteRepository;
     private final DishRepository dishRepository;
@@ -125,7 +125,8 @@ public class VotingService {
         private final boolean alreadyVoted;
         private final boolean changed;
 
-        private VoteResult(boolean success, String message, Dish dish, Dish previousDish, boolean alreadyVoted, boolean changed) {
+        private VoteResult(boolean success, String message, Dish dish, Dish previousDish, boolean alreadyVoted,
+                boolean changed) {
             this.success = success;
             this.message = message;
             this.dish = dish;
@@ -143,7 +144,8 @@ public class VotingService {
         }
 
         public static VoteResult alreadyVotedSame(Dish dish) {
-            return new VoteResult(false, "You already voted today for " + dish.getName() + ".", dish, null, true, false);
+            return new VoteResult(false, "You already voted today for " + dish.getName() + ".", dish, null, true,
+                    false);
         }
 
         public static VoteResult alreadyVotedDifferent(Vote existingVote) {

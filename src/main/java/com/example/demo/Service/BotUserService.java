@@ -23,7 +23,8 @@ public class BotUserService {
     }
 
     @Transactional
-    public TelegramUser registerOrUpdate(Long telegramId, String username, String firstName, String lastName, String languageCode) {
+    public TelegramUser registerOrUpdate(Long telegramId, String username, String firstName, String lastName,
+            String languageCode) {
         TelegramUser user = userRepository.findByTelegramId(telegramId)
                 .map(existing -> {
                     existing.setUsername(username);

@@ -9,11 +9,13 @@ public class BotMessages {
     public String welcome(String firstName, String languageCode) {
         if (languageCode != null && languageCode.startsWith("uz")) {
             return "Assalomu alaykum, " + firstName + "!\n\n" +
-                    "🍽️ *Daily Meal Voting Bot* ga xush kelibsiz. Siz har kuni nonushta, obed yoki poldnik uchun eng yaxshi taomni tanlaysiz.\n\n" +
+                    "🍽️ *Daily Meal Voting Bot* ga xush kelibsiz. Siz har kuni nonushta, obed yoki poldnik uchun eng yaxshi taomni tanlaysiz.\n\n"
+                    +
                     "⏳ Ovozingizni bugun kiritishni unutmang!";
         }
         return "Hello, " + firstName + "!\n\n" +
-                "Welcome to the *Daily Meal Voting Bot*. Vote every day for breakfast, lunch or afternoon snack and see the leaderboards in real time.\n\n" +
+                "Welcome to the *Daily Meal Voting Bot*. Vote every day for breakfast, lunch or afternoon snack and see the leaderboards in real time.\n\n"
+                +
                 "⏳ Don’t forget to vote today!";
     }
 
@@ -23,7 +25,8 @@ public class BotMessages {
                     "• Har bir kishi har kuni har bir kategoriya uchun bitta ovoz berishi mumkin.\n" +
                     "• Ovozlar 00:00 da yangilanadi va yangi kun boshlanadi.\n" +
                     "• 11:00 gacha ovozingizni o'zgartirishingiz mumkin.\n" +
-                    "• " + VoteCategory.BREAKFAST.label(languageCode) + ", " + VoteCategory.LUNCH.label(languageCode) + " va " + VoteCategory.SNACK.label(languageCode) + " mustaqil.";
+                    "• " + VoteCategory.BREAKFAST.label(languageCode) + ", " + VoteCategory.LUNCH.label(languageCode)
+                    + " va " + VoteCategory.SNACK.label(languageCode) + " mustaqil.";
         }
         return "ℹ️ *Help & Rules*\n\n" +
                 "• Each user can vote once per day in every category.\n" +

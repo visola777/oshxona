@@ -8,7 +8,6 @@ package com.example.demo.Service;
 
 import com.example.demo.entity.Food;
 import com.example.demo.repository.FoodRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.util.List;
 
@@ -17,6 +16,7 @@ public class FoodService {
     public FoodService(FoodRepository foodRepository) {
         this.foodRepository = foodRepository;
     }
+
     private final FoodRepository foodRepository;
 
     public List<Food> getFoodsByCategory(String category) {
@@ -72,4 +72,3 @@ public class FoodService {
         foodRepository.save(food);
     }
 }
-

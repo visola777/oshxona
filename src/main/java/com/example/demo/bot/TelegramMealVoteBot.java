@@ -10,7 +10,6 @@ import com.example.demo.entity.Dish;
 import com.example.demo.entity.TelegramUser;
 import com.example.demo.entity.VoteCategory;
 import com.example.demo.Service.VotingService.VoteResult;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -31,7 +30,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Component
-@RequiredArgsConstructor
 public class TelegramMealVoteBot extends TelegramLongPollingBot {
     private static final Logger log = LoggerFactory.getLogger(TelegramMealVoteBot.class);
     private final BotConfig botConfig;
@@ -41,6 +39,18 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
     private final VotingService votingService;
     private final StatisticsService statisticsService;
     private final AdminService adminService;
+
+    public TelegramMealVoteBot(BotConfig botConfig, BotMessages botMessages, BotUserService userService,
+            MealDishService dishService, VotingService votingService, StatisticsService statisticsService,
+            AdminService adminService) {
+        this.botConfig = botConfig;
+        this.botMessages = botMessages;
+        this.userService = userService;
+        this.dishService = dishService;
+        this.votingService = votingService;
+        this.statisticsService = statisticsService;
+        this.adminService = adminService;
+    }
 
     @Override
     public String getBotUsername() {
@@ -71,18 +81,24 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
             return;
         }
 
-        TelegramUser user = userService.registerOrUpdate(from.getId(), from.getUserName(), from.getFirstName(), from.getLastName(), from.getLanguageCode());
+        TelegramUser user = userService.registerOrUpdate(from.getId(), from.getUserName(), from.getFirstName(),
+                from.getLastName(), from.getLanguageCode());
         String text = message.getText().trim();
         switch (text.split(" ")[0].toLowerCase()) {
             case "/start" -> sendMainMenu(message.getChatId(), user);
-            case "/help" -> sendText(message.getChatId(), botMessages.help(user.getLanguageCode()), user.getLanguageCode());
-            case "/myvotes" -> sendText(message.getChatId(), statisticsService.renderPersonalHistory(user.getTelegramId(), 30, user.getLanguageCode()), user.getLanguageCode());
-            case "/top" -> sendText(message.getChatId(), statisticsService.renderGlobalTop(10, user.getLanguageCode()), user.getLanguageCode());
+            case "/help" ->
+                sendText(message.getChatId(), botMessages.help(user.getLanguageCode()), user.getLanguageCode());
+            case "/myvotes" -> sendText(message.getChatId(),
+                    statisticsService.renderPersonalHistory(user.getTelegramId(), 30, user.getLanguageCode()),
+                    user.getLanguageCode());
+            case "/top" -> sendText(message.getChatId(), statisticsService.renderGlobalTop(10, user.getLanguageCode()),
+                    user.getLanguageCode());
             case "/admin" -> sendAdminMenu(message.getChatId(), user);
             case "/broadcast" -> handleBroadcast(message, user);
             case "/export" -> handleExport(message, user);
             case "/reset_today" -> handleResetToday(message, user);
-            default -> sendText(message.getChatId(), "Use /start to open the menu or /help for instructions.", user.getLanguageCode());
+            default -> sendText(message.getChatId(), "Use /start to open the menu or /help for instructions.",
+                    user.getLanguageCode());
         }
     }
 
@@ -97,7 +113,8 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
             return;
         }
 
-        TelegramUser user = userService.registerOrUpdate(from.getId(), from.getUserName(), from.getFirstName(), from.getLastName(), from.getLanguageCode());
+        TelegramUser user = userService.registerOrUpdate(from.getId(), from.getUserName(), from.getFirstName(),
+                from.getLastName(), from.getLanguageCode());
         String data = callback.getData();
         Long chatId = callback.getMessage().getChatId();
 
@@ -117,7 +134,8 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
         } else if (data.startsWith("CHANGE:")) {
             processChange(chatId, user, parseId(data));
         } else if (data.equals("MY_VOTES")) {
-            sendText(chatId, statisticsService.renderPersonalHistory(user.getTelegramId(), 30, user.getLanguageCode()), user.getLanguageCode());
+            sendText(chatId, statisticsService.renderPersonalHistory(user.getTelegramId(), 30, user.getLanguageCode()),
+                    user.getLanguageCode());
         } else if (data.equals("GLOBAL_TOP")) {
             sendText(chatId, statisticsService.renderGlobalTop(10, user.getLanguageCode()), user.getLanguageCode());
         } else if (data.startsWith("ADMIN:")) {
@@ -129,7 +147,8 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
     }
 
     private void sendMainMenu(Long chatId, TelegramUser user) {
-        String menu = botMessages.welcome(user.getFirstName() != null ? user.getFirstName() : "friend", user.getLanguageCode());
+        String menu = botMessages.welcome(user.getFirstName() != null ? user.getFirstName() : "friend",
+                user.getLanguageCode());
         sendText(chatId, menu, user.getLanguageCode());
         sendText(chatId, buildMenuText(user.getLanguageCode()), user.getLanguageCode());
     }
@@ -143,7 +162,8 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
 
         List<Dish> dishes = dishService.getActiveDishesByCategory(category.name());
         if (dishes.isEmpty()) {
-            sendText(chatId, "No dishes available for " + category.label(user.getLanguageCode()) + ".", user.getLanguageCode());
+            sendText(chatId, "No dishes available for " + category.label(user.getLanguageCode()) + ".",
+                    user.getLanguageCode());
             return;
         }
 
@@ -182,11 +202,17 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
 
         VoteResult result = votingService.voteForDish(user.getTelegramId(), dish);
         if (result.isSuccess()) {
-            sendText(chatId, botMessages.voteSuccess(new BotMessages.DishInfo(dish.getName(), VoteCategory.fromName(dish.getCategory()).label(user.getLanguageCode())), user.getLanguageCode()), user.getLanguageCode());
+            sendText(chatId,
+                    botMessages.voteSuccess(
+                            new BotMessages.DishInfo(dish.getName(),
+                                    VoteCategory.fromName(dish.getCategory()).label(user.getLanguageCode())),
+                            user.getLanguageCode()),
+                    user.getLanguageCode());
             sendText(chatId, statisticsService.renderDailySummary(user.getLanguageCode()), user.getLanguageCode());
         } else if (result.isAlreadyVoted()) {
             if (isChangeAllowed()) {
-                sendText(chatId, result.getMessage() + " You may change until " + botConfig.getChangeDeadline() + ".", user.getLanguageCode());
+                sendText(chatId, result.getMessage() + " You may change until " + botConfig.getChangeDeadline() + ".",
+                        user.getLanguageCode());
                 sendText(chatId, "Press change if you want to switch to this dish.", user.getLanguageCode());
             } else {
                 sendText(chatId, result.getMessage(), user.getLanguageCode());
@@ -198,7 +224,8 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
 
     private void processChange(Long chatId, TelegramUser user, Long dishId) {
         if (!isChangeAllowed()) {
-            sendText(chatId, "Vote changes are allowed only until " + botConfig.getChangeDeadline() + ".", user.getLanguageCode());
+            sendText(chatId, "Vote changes are allowed only until " + botConfig.getChangeDeadline() + ".",
+                    user.getLanguageCode());
             return;
         }
         Dish dish = dishService.getDish(dishId);
@@ -235,7 +262,8 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
             return;
         }
         List<TelegramUser> users = userService.getAllUsers();
-        users.forEach(target -> sendText(target.getTelegramId(), "📢 Broadcast:\n" + payload, target.getLanguageCode()));
+        users.forEach(
+                target -> sendText(target.getTelegramId(), "📢 Broadcast:\n" + payload, target.getLanguageCode()));
         sendText(message.getChatId(), "Broadcast sent to " + users.size() + " users.", user.getLanguageCode());
     }
 
@@ -272,7 +300,8 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
             if (!votingService.hasVotedToday(user.getTelegramId(), VoteCategory.BREAKFAST)
                     || !votingService.hasVotedToday(user.getTelegramId(), VoteCategory.LUNCH)
                     || !votingService.hasVotedToday(user.getTelegramId(), VoteCategory.SNACK)) {
-                sendText(user.getTelegramId(), "Reminder: Please vote for today's meals before 11:00.", user.getLanguageCode());
+                sendText(user.getTelegramId(), "Reminder: Please vote for today's meals before 11:00.",
+                        user.getLanguageCode());
             }
         }
     }

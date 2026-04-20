@@ -1,10 +1,6 @@
 package com.example.demo.entity;
 
-
-
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -42,7 +38,8 @@ public class Vote {
         this.voteDate = LocalDate.now();
     }
 
-    public Vote(Long id, Long userId, String foodName, LocalDate voteDate, String category, Dish dish, LocalDateTime votedAt) {
+    public Vote(Long id, Long userId, String foodName, LocalDate voteDate, String category, Dish dish,
+            LocalDateTime votedAt) {
         this.id = id;
         this.userId = userId;
         this.foodName = foodName;
@@ -109,4 +106,3 @@ public class Vote {
         this.votedAt = votedAt;
     }
 }
-

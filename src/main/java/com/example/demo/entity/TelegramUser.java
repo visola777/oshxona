@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "telegram_users", uniqueConstraints = @UniqueConstraint(columnNames = {"telegramId"}))
+@Table(name = "telegram_users", uniqueConstraints = @UniqueConstraint(columnNames = { "telegramId" }))
 public class TelegramUser {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,7 +29,8 @@ public class TelegramUser {
     public TelegramUser() {
     }
 
-    public TelegramUser(Long id, Long telegramId, String username, String firstName, String lastName, String languageCode, LocalDateTime joinedAt, LocalDateTime lastSeenAt, boolean admin) {
+    public TelegramUser(Long id, Long telegramId, String username, String firstName, String lastName,
+            String languageCode, LocalDateTime joinedAt, LocalDateTime lastSeenAt, boolean admin) {
         this.id = id;
         this.telegramId = telegramId;
         this.username = username;
