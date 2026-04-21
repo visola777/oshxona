@@ -29,6 +29,9 @@ public class Dish {
     private int totalVotes = 0;
 
     @Column(nullable = false)
+    private boolean excluded = false;
+
+    @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
     public Dish() {
@@ -109,5 +112,13 @@ public class Dish {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public boolean isExcluded() {
+        return excluded;
+    }
+
+    public void setExcluded(boolean excluded) {
+        this.excluded = excluded;
     }
 }
