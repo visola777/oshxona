@@ -22,12 +22,14 @@ import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.ByteArrayInputStream;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Component
 public class TelegramMealVoteBot extends TelegramLongPollingBot {
@@ -41,8 +43,8 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
     private final AdminService adminService;
 
     public TelegramMealVoteBot(BotConfig botConfig, BotMessages botMessages, BotUserService userService,
-            MealDishService dishService, VotingService votingService, StatisticsService statisticsService,
-            AdminService adminService) {
+                               MealDishService dishService, VotingService votingService,
+                               StatisticsService statisticsService, AdminService adminService) {
         this.botConfig = botConfig;
         this.botMessages = botMessages;
         this.userService = userService;
@@ -64,15 +66,11 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
-        log.info("📩 Update received from user: {}", update.hasMessage() ? update.getMessage().getFrom().getId() : "unknown");
-
+        log.info("📩 Update received: {}", update.hasMessage() ? update.getMessage().getFrom().getId() : "callback");
         try {
             if (update.hasMessage() && update.getMessage().hasText()) {
-                String text = update.getMessage().getText().trim();
-                log.info("📝 Text message received: '{}'", text);   // <-- muhim log
                 handleTextMessage(update.getMessage());
             } else if (update.hasCallbackQuery()) {
-                log.info("🔘 Callback received: {}", update.getCallbackQuery().getData());
                 handleCallbackQuery(update);
             }
         } catch (Exception ex) {
@@ -80,297 +78,410 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
         }
     }
 
+    // ----------------------------------------------------------------------
+    // Text commands
+    // ----------------------------------------------------------------------
     private void handleTextMessage(Message message) {
         User from = message.getFrom();
-        if (from == null) {
-            return;
-        }
+        if (from == null) return;
 
-        TelegramUser user = userService.registerOrUpdate(from.getId(), from.getUserName(), from.getFirstName(),
+        TelegramUser user = userService.registerOrUpdate(
+                from.getId(), from.getUserName(), from.getFirstName(),
                 from.getLastName(), from.getLanguageCode());
-        String text = message.getText().trim();
-        switch (text.split(" ")[0].toLowerCase()) {
-            case "/start" -> {
-                log.info("🚀 /start command detected - calling sendMainMenu");
-                sendMainMenu(message.getChatId(), user);
-            }
-            case "/help" ->
-                sendText(message.getChatId(), botMessages.help(user.getLanguageCode()), user.getLanguageCode());
-            case "/myvotes" -> sendText(message.getChatId(),
+
+        String text = message.getText().trim().toLowerCase();
+        Long chatId = message.getChatId();
+
+        switch (text.split(" ")[0]) {
+            case "/start" -> sendMainMenu(chatId, user);
+            case "/help" -> sendText(chatId, botMessages.help(user.getLanguageCode()), user.getLanguageCode());
+            case "/myvotes" -> sendText(chatId,
                     statisticsService.renderPersonalHistory(user.getTelegramId(), 30, user.getLanguageCode()),
                     user.getLanguageCode());
-            case "/top" -> sendText(message.getChatId(), statisticsService.renderGlobalTop(10, user.getLanguageCode()),
+            case "/top" -> sendText(chatId,
+                    statisticsService.renderGlobalTop(10, user.getLanguageCode()),
                     user.getLanguageCode());
-            case "/admin" -> sendAdminMenu(message.getChatId(), user);
+            case "/admin" -> sendAdminMenu(chatId, user);
             case "/broadcast" -> handleBroadcast(message, user);
             case "/export" -> handleExport(message, user);
             case "/reset_today" -> handleResetToday(message, user);
-            default -> {
-                log.warn("Unknown command: {}", text);
-            sendText(message.getChatId(), "Use /start to open the menu or /help for instructions.",
-                    user.getLanguageCode());}
+            default -> sendText(chatId, "Use /start to open the menu", user.getLanguageCode());
         }
     }
 
+    // ----------------------------------------------------------------------
+    // Callback handling (all UI interactions)
+    // ----------------------------------------------------------------------
     private void handleCallbackQuery(Update update) {
         var callback = update.getCallbackQuery();
-        if (callback == null) {
-            return;
-        }
+        if (callback == null) return;
 
         User from = callback.getFrom();
-        if (from == null) {
-            return;
-        }
+        if (from == null) return;
 
-        TelegramUser user = userService.registerOrUpdate(from.getId(), from.getUserName(), from.getFirstName(),
+        TelegramUser user = userService.registerOrUpdate(
+                from.getId(), from.getUserName(), from.getFirstName(),
                 from.getLastName(), from.getLanguageCode());
+
         String data = callback.getData();
         Long chatId = callback.getMessage().getChatId();
+        String callbackId = callback.getId();
 
         if (data == null) {
-            answerCallback(callback.getId(), "Invalid action.");
+            answerCallback(callbackId, "Invalid action");
             return;
         }
 
-        if (data.equals("MENU")) {
-            sendMainMenu(chatId, user);
-        } else if (data.startsWith("CATEGORY:")) {
-            sendCategoryList(chatId, user, data.split(":", 2)[1]);
-        } else if (data.startsWith("DISH:")) {
-            sendDishDetail(chatId, user, parseId(data));
-        } else if (data.startsWith("VOTE:")) {
-            processVote(chatId, user, parseId(data));
-        } else if (data.startsWith("CHANGE:")) {
-            processChange(chatId, user, parseId(data));
-        } else if (data.equals("MY_VOTES")) {
-            sendText(chatId, statisticsService.renderPersonalHistory(user.getTelegramId(), 30, user.getLanguageCode()),
-                    user.getLanguageCode());
-        } else if (data.equals("GLOBAL_TOP")) {
-            sendText(chatId, statisticsService.renderGlobalTop(10, user.getLanguageCode()), user.getLanguageCode());
-        } else if (data.startsWith("ADMIN:")) {
-            sendAdminMenu(chatId, user);
-        } else {
-            sendText(chatId, "Unknown action. Use /start to return to the main menu.", user.getLanguageCode());
+        log.info("Callback data: {}", data);
+
+        // Main menu categories
+        if (data.startsWith("CATEGORY:")) {
+            String categoryKey = data.split(":", 2)[1];
+            handleCategorySelection(chatId, user, categoryKey);
         }
-        answerCallback(callback.getId(), "Done");
+        // Back to category list
+        else if (data.startsWith("BACK_TO_CATEGORY:")) {
+            String categoryKey = data.split(":", 2)[1];
+            handleCategorySelection(chatId, user, categoryKey);
+        }
+        // Show dish details
+        else if (data.startsWith("DISH:")) {
+            Long dishId = parseId(data);
+            if (dishId != null) sendDishDetail(chatId, user, dishId);
+        }
+        // Confirm vote
+        else if (data.startsWith("CONFIRM_VOTE:")) {
+            Long dishId = parseId(data);
+            if (dishId != null) handleConfirmVote(chatId, user, dishId);
+        }
+        // Show statistics (today's top)
+        else if (data.equals("SHOW_STATS")) {
+            sendTodayStats(chatId, user);
+        }
+        // Done / exit
+        else if (data.equals("DONE")) {
+            sendText(chatId, "✅ Siz asosiy menyudasiz. /start bosing.", user.getLanguageCode());
+        }
+        // Back to main menu
+        else if (data.equals("MENU")) {
+            sendMainMenu(chatId, user);
+        }
+        // Admin fallback
+        else if (data.startsWith("ADMIN:")) {
+            sendAdminMenu(chatId, user);
+        }
+        else {
+            sendText(chatId, "Noma'lum buyruq. /start bosing.", user.getLanguageCode());
+        }
+
+        answerCallback(callbackId, "✅");
     }
 
+    // ----------------------------------------------------------------------
+    // Main menu with 3 inline buttons
+    // ----------------------------------------------------------------------
     private void sendMainMenu(Long chatId, TelegramUser user) {
-        log.info("📤 Sending main menu to chatId: {}", chatId);
-        String menu = botMessages.welcome(user.getFirstName() != null ? user.getFirstName() : "friend",
+        String welcome = botMessages.welcome(
+                user.getFirstName() != null ? user.getFirstName() : "friend",
                 user.getLanguageCode());
-        sendText(chatId, menu, user.getLanguageCode());
-        sendText(chatId, buildMenuText(user.getLanguageCode()), user.getLanguageCode());
-        log.info("✅ Main menu sent successfully");
+        sendText(chatId, welcome, user.getLanguageCode());
+
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId.toString());
+        message.setText("🍽️ *Ovqat turini tanlang:*");
+        message.setParseMode("Markdown");
+
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        // Breakfast button
+        InlineKeyboardButton breakfast = new InlineKeyboardButton();
+        breakfast.setText(VoteCategory.BREAKFAST.label(user.getLanguageCode()));
+        breakfast.setCallbackData("CATEGORY:" + VoteCategory.BREAKFAST.name());
+
+        // Lunch button
+        InlineKeyboardButton lunch = new InlineKeyboardButton();
+        lunch.setText(VoteCategory.LUNCH.label(user.getLanguageCode()));
+        lunch.setCallbackData("CATEGORY:" + VoteCategory.LUNCH.name());
+
+        // Snack button
+        InlineKeyboardButton snack = new InlineKeyboardButton();
+        snack.setText(VoteCategory.SNACK.label(user.getLanguageCode()));
+        snack.setCallbackData("CATEGORY:" + VoteCategory.SNACK.name());
+
+        rows.add(List.of(breakfast, lunch, snack));
+        markup.setKeyboard(rows);
+        message.setReplyMarkup(markup);
+
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
+            log.error("Failed to send main menu", e);
+        }
     }
 
-    private void sendCategoryList(Long chatId, TelegramUser user, String categoryKey) {
+    // ----------------------------------------------------------------------
+    // Category selection with sequential unlock check
+    // ----------------------------------------------------------------------
+    private void handleCategorySelection(Long chatId, TelegramUser user, String categoryKey) {
         VoteCategory category = VoteCategory.fromName(categoryKey);
         if (category == null) {
-            sendText(chatId, "Category not found.", user.getLanguageCode());
+            sendText(chatId, "Kategoriya topilmadi.", user.getLanguageCode());
+            return;
+        }
+
+        // Sequential unlock validation
+        if (!isCategoryAccessible(user, category)) {
+            String errorMsg = switch (category) {
+                case LUNCH -> "❌ Avval *Tonggi ovqat* uchun ovoz berishingiz kerak!";
+                case SNACK -> "❌ Avval *Tushlik* uchun ovoz berishingiz kerak!";
+                default -> "";
+            };
+            sendText(chatId, errorMsg, user.getLanguageCode());
+            return;
+        }
+
+        // Voting time check
+        if (!isVotingAllowed()) {
+            sendText(chatId, "⚠️ Ovoz berish vaqti tugadi (11:00 dan keyin).", user.getLanguageCode());
             return;
         }
 
         List<Dish> dishes = dishService.getActiveDishesByCategory(category.name());
         if (dishes.isEmpty()) {
-            sendText(chatId, "No dishes available for " + category.label(user.getLanguageCode()) + ".",
-                    user.getLanguageCode());
+            sendText(chatId, "Bu kategoriya uchun hech qanday taom mavjud emas.", user.getLanguageCode());
             return;
         }
 
-        StringBuilder builder = new StringBuilder("🍽️ " + category.label(user.getLanguageCode()) + "\n\n");
+        // Send list of dishes as inline buttons
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId.toString());
+        message.setText("🍽️ *" + category.label(user.getLanguageCode()) + "*\nQuyidagi taomlardan birini tanlang:");
+        message.setParseMode("Markdown");
+
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
         for (Dish dish : dishes) {
-            builder.append(dish.getName()).append(" — ").append(dish.getTotalVotes()).append(" votes\n");
+            InlineKeyboardButton btn = new InlineKeyboardButton();
+            btn.setText(dish.getName() + " (" + dish.getTotalVotes() + " ovoz)");
+            btn.setCallbackData("DISH:" + dish.getId());
+            rows.add(List.of(btn));
         }
-        builder.append("\nChoose a dish to see details and vote.");
-        sendText(chatId, builder.toString(), user.getLanguageCode());
+
+        // Back to main menu button
+        InlineKeyboardButton back = new InlineKeyboardButton();
+        back.setText("🔙 Asosiy menyu");
+        back.setCallbackData("MENU");
+        rows.add(List.of(back));
+
+        markup.setKeyboard(rows);
+        message.setReplyMarkup(markup);
+
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
+            log.error("Failed to send category list", e);
+        }
     }
 
+    // ----------------------------------------------------------------------
+    // Dish detail with photo + Back & Confirm buttons
+    // ----------------------------------------------------------------------
     private void sendDishDetail(Long chatId, TelegramUser user, Long dishId) {
         Dish dish = dishService.getDish(dishId);
         if (dish == null) {
-            sendText(chatId, "Dish not found.", user.getLanguageCode());
+            sendText(chatId, "Taom topilmadi.", user.getLanguageCode());
             return;
         }
 
-        String caption = "🍽️ " + dish.getName() + "\n" +
-                (dish.getDescription() != null ? dish.getDescription() + "\n" : "") +
-                "\nCurrent votes: " + dish.getTotalVotes() + "\n" +
-                "\nDo you want to vote for this dish today?";
+        String caption = "🍽️ *" + dish.getName() + "*\n\n" +
+                (dish.getDescription() != null ? dish.getDescription() + "\n\n" : "") +
+                "📊 Hozirgi ovozlar: *" + dish.getTotalVotes() + "*\n\n" +
+                "✅ Ushbu taomga ovoz berishni tasdiqlaysizmi?";
+
+        // Inline buttons: Back and Confirm
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        InlineKeyboardButton back = new InlineKeyboardButton();
+        back.setText("⬅️ Orqaga");
+        back.setCallbackData("BACK_TO_CATEGORY:" + dish.getCategory());
+
+        InlineKeyboardButton confirm = new InlineKeyboardButton();
+        confirm.setText("✅ Tasdiqlash");
+        confirm.setCallbackData("CONFIRM_VOTE:" + dish.getId());
+
+        rows.add(List.of(back, confirm));
+        markup.setKeyboard(rows);
+
         if (dish.getPhotoUrl() != null && !dish.getPhotoUrl().isBlank()) {
-            sendPhoto(chatId, dish.getPhotoUrl(), caption);
+            SendPhoto photo = new SendPhoto();
+            photo.setChatId(chatId.toString());
+            photo.setPhoto(new InputFile(dish.getPhotoUrl()));
+            photo.setCaption(caption);
+            photo.setParseMode("Markdown");
+            photo.setReplyMarkup(markup);
+            try {
+                execute(photo);
+            } catch (TelegramApiException e) {
+                log.error("Failed to send photo", e);
+                sendText(chatId, caption, user.getLanguageCode());
+            }
         } else {
-            sendText(chatId, caption, user.getLanguageCode());
+            SendMessage msg = new SendMessage();
+            msg.setChatId(chatId.toString());
+            msg.setText(caption);
+            msg.setParseMode("Markdown");
+            msg.setReplyMarkup(markup);
+            try {
+                execute(msg);
+            } catch (TelegramApiException e) {
+                log.error("Failed to send dish detail", e);
+            }
         }
     }
 
-    private void processVote(Long chatId, TelegramUser user, Long dishId) {
+    // ----------------------------------------------------------------------
+    // Confirm vote -> process and show success with Stats/Done buttons
+    // ----------------------------------------------------------------------
+    private void handleConfirmVote(Long chatId, TelegramUser user, Long dishId) {
+        if (!isVotingAllowed()) {
+            sendText(chatId, "⚠️ Ovoz berish vaqti tugadi (11:00 dan keyin).", user.getLanguageCode());
+            return;
+        }
+
         Dish dish = dishService.getDish(dishId);
         if (dish == null) {
-            sendText(chatId, "Dish not found.", user.getLanguageCode());
+            sendText(chatId, "Taom topilmadi.", user.getLanguageCode());
             return;
         }
 
         VoteResult result = votingService.voteForDish(user.getTelegramId(), dish);
-        if (result.isSuccess()) {
-            sendText(chatId,
-                    botMessages.voteSuccess(
-                            new BotMessages.DishInfo(dish.getName(),
-                                    VoteCategory.fromName(dish.getCategory()).label(user.getLanguageCode())),
-                            user.getLanguageCode()),
-                    user.getLanguageCode());
-            sendText(chatId, statisticsService.renderDailySummary(user.getLanguageCode()), user.getLanguageCode());
-        } else if (result.isAlreadyVoted()) {
-            if (isChangeAllowed()) {
-                sendText(chatId, result.getMessage() + " You may change until " + botConfig.getChangeDeadline() + ".",
-                        user.getLanguageCode());
-                sendText(chatId, "Press change if you want to switch to this dish.", user.getLanguageCode());
-            } else {
-                sendText(chatId, result.getMessage(), user.getLanguageCode());
-            }
-        } else {
+        if (!result.isSuccess()) {
             sendText(chatId, result.getMessage(), user.getLanguageCode());
-        }
-    }
-
-    private void processChange(Long chatId, TelegramUser user, Long dishId) {
-        if (!isChangeAllowed()) {
-            sendText(chatId, "Vote changes are allowed only until " + botConfig.getChangeDeadline() + ".",
-                    user.getLanguageCode());
-            return;
-        }
-        Dish dish = dishService.getDish(dishId);
-        if (dish == null) {
-            sendText(chatId, "Dish not found.", user.getLanguageCode());
             return;
         }
 
-        VoteResult result = votingService.changeVote(user.getTelegramId(), dish);
-        sendText(chatId, result.getMessage(), user.getLanguageCode());
-    }
+        // Success message with two inline buttons
+        String successText = "✅ " + botMessages.voteSuccess(
+                new BotMessages.DishInfo(dish.getName(),
+                        VoteCategory.fromName(dish.getCategory()).label(user.getLanguageCode())),
+                user.getLanguageCode());
 
-    private void sendAdminMenu(Long chatId, TelegramUser user) {
-        if (!userService.isAdmin(user.getTelegramId())) {
-            sendText(chatId, "You are not authorized to use admin commands.", user.getLanguageCode());
-            return;
-        }
+        SendMessage msg = new SendMessage();
+        msg.setChatId(chatId.toString());
+        msg.setText(successText);
+        msg.setParseMode("Markdown");
 
-        String message = """
-        🔧 Admin panel:
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
-        /export - Export all votes as CSV
-        /reset_today - Reset today's votes
-        /broadcast <i>message</i> - Broadcast text to all users
-        /admin - Refresh this panel
-        """;
+        InlineKeyboardButton statsBtn = new InlineKeyboardButton();
+        statsBtn.setText("📊 Statistika (Bugungi TOP)");
+        statsBtn.setCallbackData("SHOW_STATS");
 
-        // MarkdownV2 dan foydalanib, xavfsizroq qilamiz
-        sendTextSafe(chatId, message, user.getLanguageCode());
-    }
+        InlineKeyboardButton doneBtn = new InlineKeyboardButton();
+        doneBtn.setText("✅ Tugatish");
+        doneBtn.setCallbackData("DONE");
 
-    private void sendTextSafe(Long chatId, String text, String languageCode) {
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId.toString());
-        message.setText(text);
-        message.setParseMode("MarkdownV2");   // yoki "HTML" ni sinab ko'rish mumkin
+        rows.add(List.of(statsBtn, doneBtn));
+        markup.setKeyboard(rows);
+        msg.setReplyMarkup(markup);
 
         try {
-            execute(message);
-            log.info("✅ Admin menu sent successfully");
+            execute(msg);
         } catch (TelegramApiException e) {
-            log.error("❌ Failed to send admin menu: {}", e.getMessage());
-
-            // Agar Markdown xatosi bo'lsa, oddiy text bilan qayta yuborish
-            try {
-                message.setParseMode(null);
-                message.setText(text.replace("<i>", "").replace("</i>", ""));
-                execute(message);
-            } catch (Exception ignored) {}
+            log.error("Failed to send vote confirmation", e);
         }
     }
-    private void handleBroadcast(Message message, TelegramUser user) {
+
+    // ----------------------------------------------------------------------
+    // Today's top dish statistics (percentage + vote count)
+    // ----------------------------------------------------------------------
+    private void sendTodayStats(Long chatId, TelegramUser user) {
+        String stats = statisticsService.renderDailyTopWithPercentage(user.getLanguageCode());
+        sendText(chatId, stats, user.getLanguageCode());
+    }
+
+    // ----------------------------------------------------------------------
+    // Helper: check if category is accessible (sequential unlock)
+    // ----------------------------------------------------------------------
+    private boolean isCategoryAccessible(TelegramUser user, VoteCategory category) {
+        return switch (category) {
+            case BREAKFAST -> true;
+            case LUNCH -> votingService.hasVotedToday(user.getTelegramId(), VoteCategory.BREAKFAST);
+            case SNACK -> votingService.hasVotedToday(user.getTelegramId(), VoteCategory.LUNCH);
+        };
+    }
+
+    private boolean isVotingAllowed() {
+        return LocalTime.now().isBefore(LocalTime.parse("11:00"));
+    }
+
+    // ----------------------------------------------------------------------
+    // Admin commands (unchanged)
+    // ----------------------------------------------------------------------
+    private void sendAdminMenu(Long chatId, TelegramUser user) {
         if (!userService.isAdmin(user.getTelegramId())) {
-            sendText(message.getChatId(), "Unauthorized.", user.getLanguageCode());
+            sendText(chatId, "Siz admin emassiz.", user.getLanguageCode());
             return;
         }
+        String message = """
+        🔧 Admin panel:
+        /export - Eksport CSV
+        /reset_today - Bugungi ovozlarni tozalash
+        /broadcast <matn> - Xabar yuborish
+        /admin - Menyuni yangilash
+        """;
+        sendText(chatId, message, user.getLanguageCode());
+    }
+
+    private void handleBroadcast(Message message, TelegramUser user) {
+        if (!userService.isAdmin(user.getTelegramId())) return;
         String payload = message.getText().replaceFirst("/broadcast", "").trim();
         if (payload.isBlank()) {
-            sendText(message.getChatId(), "Usage: /broadcast your message here", user.getLanguageCode());
+            sendText(message.getChatId(), "Ishlatish: /broadcast xabar matni", user.getLanguageCode());
             return;
         }
-        List<TelegramUser> users = userService.getAllUsers();
-        users.forEach(
-                target -> sendText(target.getTelegramId(), "📢 Broadcast:\n" + payload, target.getLanguageCode()));
-        sendText(message.getChatId(), "Broadcast sent to " + users.size() + " users.", user.getLanguageCode());
+        userService.getAllUsers().forEach(target ->
+                sendText(target.getTelegramId(), "📢 E'lon:\n" + payload, target.getLanguageCode()));
+        sendText(message.getChatId(), "Xabar " + userService.getAllUsers().size() + " foydalanuvchiga yuborildi.", user.getLanguageCode());
     }
 
     private void handleExport(Message message, TelegramUser user) {
-        if (!userService.isAdmin(user.getTelegramId())) {
-            sendText(message.getChatId(), "Unauthorized.", user.getLanguageCode());
-            return;
-        }
+        if (!userService.isAdmin(user.getTelegramId())) return;
         byte[] data = adminService.exportVotesCsv();
-        SendDocument document = new SendDocument();
-        document.setChatId(message.getChatId().toString());
-        document.setDocument(new InputFile(new ByteArrayInputStream(data), "votes.csv"));
-        document.setCaption("Vote export file");
+        SendDocument doc = new SendDocument();
+        doc.setChatId(message.getChatId().toString());
+        doc.setDocument(new InputFile(new ByteArrayInputStream(data), "votes.csv"));
+        doc.setCaption("Ovozlar eksporti");
         try {
-            execute(document);
+            execute(doc);
         } catch (TelegramApiException e) {
-            log.error("Failed to send export", e);
-            sendText(message.getChatId(), "Failed to export votes.", user.getLanguageCode());
+            log.error("Export failed", e);
+            sendText(message.getChatId(), "Eksport qilmadi.", user.getLanguageCode());
         }
     }
 
     private void handleResetToday(Message message, TelegramUser user) {
-        if (!userService.isAdmin(user.getTelegramId())) {
-            sendText(message.getChatId(), "Unauthorized.", user.getLanguageCode());
-            return;
-        }
+        if (!userService.isAdmin(user.getTelegramId())) return;
         adminService.resetTodayVotes();
-        sendText(message.getChatId(), "Today's votes were reset.", user.getLanguageCode());
+        sendText(message.getChatId(), "Bugungi ovozlar tozalandi.", user.getLanguageCode());
     }
 
-    public void sendDailyReminder() {
-        List<TelegramUser> users = userService.getAllUsers();
-        for (TelegramUser user : users) {
-            if (!votingService.hasVotedToday(user.getTelegramId(), VoteCategory.BREAKFAST)
-                    || !votingService.hasVotedToday(user.getTelegramId(), VoteCategory.LUNCH)
-                    || !votingService.hasVotedToday(user.getTelegramId(), VoteCategory.SNACK)) {
-                sendText(user.getTelegramId(), "Reminder: Please vote for today's meals before 11:00.",
-                        user.getLanguageCode());
-            }
-        }
-    }
-
-    private boolean isChangeAllowed() {
-        LocalTime deadline = LocalTime.parse(botConfig.getChangeDeadline());
-        return LocalTime.now().isBefore(deadline);
-    }
-
-    private void sendText(Long chatId, String text, String languageCode) {
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId.toString());
-        message.setText(text);
-        message.enableMarkdown(true);
+    // ----------------------------------------------------------------------
+    // Utility send methods
+    // ----------------------------------------------------------------------
+    private void sendText(Long chatId, String text, String lang) {
+        SendMessage msg = new SendMessage();
+        msg.setChatId(chatId.toString());
+        msg.setText(text);
+        msg.enableMarkdown(true);
         try {
-            execute(message);
+            execute(msg);
         } catch (TelegramApiException e) {
-            log.error("Failed to send message", e);
-        }
-    }
-
-    private void sendPhoto(Long chatId, String url, String caption) {
-        SendPhoto photo = new SendPhoto();
-        photo.setChatId(chatId.toString());
-        photo.setPhoto(new InputFile(url));
-        photo.setCaption(caption);
-        try {
-            execute(photo);
-        } catch (TelegramApiException e) {
-            log.error("Failed to send photo", e);
-            sendText(chatId, caption, null);
+            log.error("Send text failed", e);
         }
     }
 
@@ -382,32 +493,36 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
         try {
             execute(answer);
         } catch (TelegramApiException e) {
-            log.error("Failed to answer callback", e);
+            log.error("Answer callback failed", e);
         }
     }
 
-    private Long parseId(String callbackData) {
-        String[] parts = callbackData.split(":");
-        if (parts.length < 2) {
-            return null;
-        }
+    private Long parseId(String data) {
+        String[] parts = data.split(":");
+        if (parts.length < 2) return null;
         try {
             return Long.parseLong(parts[1]);
-        } catch (NumberFormatException ex) {
+        } catch (NumberFormatException e) {
             return null;
         }
     }
 
-    private String buildMenuText(String languageCode) {
-        String breakfast = VoteCategory.BREAKFAST.label(languageCode);
-        String lunch = VoteCategory.LUNCH.label(languageCode);
-        String snack = VoteCategory.SNACK.label(languageCode);
-        return "Main menu:\n" +
-                "1. " + breakfast + " (/category " + VoteCategory.BREAKFAST.name() + ")\n" +
-                "2. " + lunch + " (/category " + VoteCategory.LUNCH.name() + ")\n" +
-                "3. " + snack + " (/category " + VoteCategory.SNACK.name() + ")\n" +
-                "4. /myvotes - My votes\n" +
-                "5. /top - Top dishes\n" +
-                "6. /help - Help and rules";
+    public void sendDailyReminder() {
+        List<TelegramUser> users = userService.getAllUsers();
+        for (TelegramUser user : users) {
+            boolean hasVotedAll = true;
+            for (VoteCategory category : VoteCategory.values()) {
+                if (!votingService.hasVotedToday(user.getTelegramId(), category)) {
+                    hasVotedAll = false;
+                    break;
+                }
+            }
+            if (!hasVotedAll) {
+                sendText(user.getTelegramId(),
+                        "🌅 Eslatma: Iltimos, bugungi ovozlaringizni 11:00 dan oldin bering!\n" +
+                                "Tonggi ovqat → Tushlik → Poldnik",
+                        user.getLanguageCode());
+            }
+        }
     }
 }

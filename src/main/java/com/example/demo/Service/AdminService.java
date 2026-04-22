@@ -27,10 +27,10 @@ public class AdminService {
     private final DishRepository dishRepository;
     private final TelegramUserRepository userRepository;
 
-    public AdminService(BotUserService userService, 
-                       VoteRepository voteRepository,
-                       DishRepository dishRepository,
-                       TelegramUserRepository userRepository) {
+    public AdminService(BotUserService userService,
+            VoteRepository voteRepository,
+            DishRepository dishRepository,
+            TelegramUserRepository userRepository) {
         this.userService = userService;
         this.voteRepository = voteRepository;
         this.dishRepository = dishRepository;
@@ -115,9 +115,12 @@ public class AdminService {
             }
 
             Dish dish = dishOpt.get();
-            if (name != null && !name.isEmpty()) dish.setName(name);
-            if (description != null && !description.isEmpty()) dish.setDescription(description);
-            if (photoUrl != null && !photoUrl.isEmpty()) dish.setPhotoUrl(photoUrl);
+            if (name != null && !name.isEmpty())
+                dish.setName(name);
+            if (description != null && !description.isEmpty())
+                dish.setDescription(description);
+            if (photoUrl != null && !photoUrl.isEmpty())
+                dish.setPhotoUrl(photoUrl);
 
             dishRepository.save(dish);
             log.info("✏️ Food updated: {}", dish.getName());
@@ -263,12 +266,11 @@ public class AdminService {
      */
     public AdminStatistics getSystemStatistics() {
         return new AdminStatistics(
-            userRepository.count(),
-            dishRepository.count(),
-            getExcludedFoods().size(),
-            voteRepository.findAllByVoteDate(LocalDate.now()).size(),
-            LocalDateTime.now()
-        );
+                userRepository.count(),
+                dishRepository.count(),
+                getExcludedFoods().size(),
+                voteRepository.findAllByVoteDate(LocalDate.now()).size(),
+                LocalDateTime.now());
     }
 
     /**
@@ -277,15 +279,14 @@ public class AdminService {
     public String getSystemReport() {
         AdminStatistics stats = getSystemStatistics();
         return String.format(
-            "📊 SYSTEM STATISTICS\n\n" +
-            "👥 Total Users: %d\n" +
-            "🍱 Total Foods: %d\n" +
-            "❌ Excluded Foods: %d\n" +
-            "✅ Today's Votes: %d\n" +
-            "⏰ Generated: %s",
-            stats.totalUsers, stats.totalFoods, stats.excludedFoods, 
-            stats.votesToday, stats.generatedAt.toString()
-        );
+                "📊 SYSTEM STATISTICS\n\n" +
+                        "👥 Total Users: %d\n" +
+                        "🍱 Total Foods: %d\n" +
+                        "❌ Excluded Foods: %d\n" +
+                        "✅ Today's Votes: %d\n" +
+                        "⏰ Generated: %s",
+                stats.totalUsers, stats.totalFoods, stats.excludedFoods,
+                stats.votesToday, stats.generatedAt.toString());
     }
 
     // ===================== ADMIN RESULT & STATISTICS CLASSES =====================
@@ -315,4 +316,4 @@ public class AdminService {
             this.votesToday = votesToday;
             this.generatedAt = generatedAt;
         }
-    }
+    }}

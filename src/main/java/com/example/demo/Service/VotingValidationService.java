@@ -28,9 +28,9 @@ public class VotingValidationService {
     private final TelegramUserRepository userRepository;
     private static final LocalTime VOTING_DEADLINE = LocalTime.of(11, 0);
 
-    public VotingValidationService(VoteRepository voteRepository, 
-                                  DishRepository dishRepository,
-                                  TelegramUserRepository userRepository) {
+    public VotingValidationService(VoteRepository voteRepository,
+            DishRepository dishRepository,
+            TelegramUserRepository userRepository) {
         this.voteRepository = voteRepository;
         this.dishRepository = dishRepository;
         this.userRepository = userRepository;
@@ -55,7 +55,7 @@ public class VotingValidationService {
         int minutes = (int) java.time.temporal.ChronoUnit.MINUTES.between(now, deadline);
         int hours = minutes / 60;
         minutes = minutes % 60;
-        
+
         if (hours > 0) {
             return String.format("⏰ %d hours %d minutes remaining", hours, minutes);
         } else {
@@ -68,10 +68,9 @@ public class VotingValidationService {
      */
     public boolean hasUserVotedInCategory(Long telegramUserId, String category) {
         return voteRepository.existsByUserIdAndVoteDateAndCategory(
-                telegramUserId, 
-                LocalDate.now(), 
-                category
-        );
+                telegramUserId,
+                LocalDate.now(),
+                category);
     }
 
     /**
@@ -79,10 +78,9 @@ public class VotingValidationService {
      */
     public Optional<Vote> getUserVoteInCategory(Long telegramUserId, String category) {
         return voteRepository.findByUserIdAndVoteDateAndCategory(
-                telegramUserId, 
-                LocalDate.now(), 
-                category
-        );
+                telegramUserId,
+                LocalDate.now(),
+                category);
     }
 
     /**
@@ -91,17 +89,14 @@ public class VotingValidationService {
      */
     public VotingProgress getUserVotingProgress(Long telegramUserId) {
         LocalDate today = LocalDate.now();
-        
+
         boolean breakfastVoted = voteRepository.existsByUserIdAndVoteDateAndCategory(
-                telegramUserId, today, "breakfast"
-        );
+                telegramUserId, today, "breakfast");
         boolean lunchVoted = voteRepository.existsByUserIdAndVoteDateAndCategory(
-                telegramUserId, today, "lunch"
-        );
+                telegramUserId, today, "lunch");
         boolean snackVoted = voteRepository.existsByUserIdAndVoteDateAndCategory(
-                telegramUserId, today, "snack"
-        );
-        
+                telegramUserId, today, "snack");
+
         return new VotingProgress(breakfastVoted, lunchVoted, snackVoted);
     }
 
@@ -124,21 +119,19 @@ public class VotingValidationService {
      */
     public boolean isCategoryLocked(Long telegramUserId, String category) {
         LocalDate today = LocalDate.now();
-        
+
         return switch (category.toLowerCase()) {
             case "breakfast" -> false; // Breakfast is always available
-            case "lunch" -> 
+            case "lunch" ->
                 // Lunch is locked until Breakfast is voted
                 !voteRepository.existsByUserIdAndVoteDateAndCategory(
-                    telegramUserId, today, "breakfast"
-                );
-            case "snack" -> 
+                        telegramUserId, today, "breakfast");
+            case "snack" ->
                 // Snack is locked until both Breakfast and Lunch are voted
                 !voteRepository.existsByUserIdAndVoteDateAndCategory(
-                    telegramUserId, today, "breakfast"
-                ) || !voteRepository.existsByUserIdAndVoteDateAndCategory(
-                    telegramUserId, today, "lunch"
-                );
+                        telegramUserId, today, "breakfast")
+                        || !voteRepository.existsByUserIdAndVoteDateAndCategory(
+                                telegramUserId, today, "lunch");
             default -> false;
         };
     }
@@ -163,33 +156,33 @@ public class VotingValidationService {
         if (!isVotingTimeValid()) {
             return new VotingValidation(false, "❌ Voting closed! Deadline is 11:00 AM");
         }
-        
+
         // Rule 2: Check sequential unlock
         if (isCategoryLocked(telegramUserId, dish.getCategory())) {
             String reason = getLockReason(dish.getCategory());
             return new VotingValidation(false, reason);
         }
-        
+
         // Rule 3: Check if dish is excluded (yesterday's winner)
         if (isDishExcluded(dish.getId())) {
             return new VotingValidation(false, "❌ This dish won yesterday and is excluded today");
         }
-        
+
         // Rule 4: Check one vote per category per day
         if (hasUserVotedInCategory(telegramUserId, dish.getCategory())) {
             Optional<Vote> existingVote = getUserVoteInCategory(telegramUserId, dish.getCategory());
             if (existingVote.isPresent()) {
                 Dish prevDish = existingVote.get().getDish();
                 if (prevDish.getId().equals(dish.getId())) {
-                    return new VotingValidation(false, 
-                        "⚠️ You already voted for this dish in " + dish.getCategory());
+                    return new VotingValidation(false,
+                            "⚠️ You already voted for this dish in " + dish.getCategory());
                 }
                 // Different dish in same category = revote (allowed)
-                return new VotingValidation(true, 
-                    "✅ Your vote will replace previous vote for " + prevDish.getName());
+                return new VotingValidation(true,
+                        "✅ Your vote will replace previous vote for " + prevDish.getName());
             }
         }
-        
+
         return new VotingValidation(true, "✅ Vote accepted");
     }
 
@@ -200,17 +193,17 @@ public class VotingValidationService {
         public final boolean breakfastVoted;
         public final boolean lunchVoted;
         public final boolean snackVoted;
-        
+
         public VotingProgress(boolean breakfast, boolean lunch, boolean snack) {
             this.breakfastVoted = breakfast;
             this.lunchVoted = lunch;
             this.snackVoted = snack;
         }
-        
+
         public boolean isComplete() {
             return breakfastVoted && lunchVoted && snackVoted;
         }
-        
+
         public String getProgressEmoji() {
             int completed = (breakfastVoted ? 1 : 0) + (lunchVoted ? 1 : 0) + (snackVoted ? 1 : 0);
             return switch (completed) {
@@ -229,7 +222,7 @@ public class VotingValidationService {
     public static class VotingValidation {
         public final boolean valid;
         public final String message;
-        
+
         public VotingValidation(boolean valid, String message) {
             this.valid = valid;
             this.message = message;

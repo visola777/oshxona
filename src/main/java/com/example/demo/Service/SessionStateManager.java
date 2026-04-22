@@ -14,7 +14,7 @@ public class SessionStateManager {
     private final VotingValidationService votingValidationService;
 
     public SessionStateManager(TelegramUserRepository userRepository,
-                              VotingValidationService votingValidationService) {
+            VotingValidationService votingValidationService) {
         this.userRepository = userRepository;
         this.votingValidationService = votingValidationService;
     }
@@ -23,16 +23,14 @@ public class SessionStateManager {
      * Get user's current voting state
      */
     public UserVotingState getUserState(Long telegramUserId) {
-        VotingValidationService.VotingProgress progress = 
-            votingValidationService.getUserVotingProgress(telegramUserId);
-        
+        VotingValidationService.VotingProgress progress = votingValidationService.getUserVotingProgress(telegramUserId);
+
         return new UserVotingState(
-            telegramUserId,
-            progress.breakfastVoted,
-            progress.lunchVoted,
-            progress.snackVoted,
-            progress.getProgressEmoji()
-        );
+                telegramUserId,
+                progress.breakfastVoted,
+                progress.lunchVoted,
+                progress.snackVoted,
+                progress.getProgressEmoji());
     }
 
     /**
@@ -40,7 +38,7 @@ public class SessionStateManager {
      */
     public String getNextCategory(Long telegramUserId) {
         UserVotingState state = getUserState(telegramUserId);
-        
+
         if (!state.breakfastVoted) {
             return "breakfast";
         } else if (!state.lunchVoted) {
@@ -64,16 +62,16 @@ public class SessionStateManager {
      */
     public String getProgressMessage(Long telegramUserId) {
         UserVotingState state = getUserState(telegramUserId);
-        
+
         StringBuilder sb = new StringBuilder();
         sb.append("📊 Today's Voting Progress\n\n");
-        
+
         sb.append(state.breakfastVoted ? "✅ Breakfast voted\n" : "⭕ Breakfast pending\n");
         sb.append(state.lunchVoted ? "✅ Lunch voted\n" : "⭕ Lunch pending\n");
         sb.append(state.snackVoted ? "✅ Snack voted\n" : "⭕ Snack pending\n");
-        
+
         sb.append("\n").append(state.progressEmoji);
-        
+
         if (!state.isComplete()) {
             String next = getNextCategory(telegramUserId);
             if (next != null) {
@@ -82,7 +80,7 @@ public class SessionStateManager {
         } else {
             sb.append("\n🎉 Thank you for voting!");
         }
-        
+
         return sb.toString();
     }
 
@@ -95,20 +93,20 @@ public class SessionStateManager {
         public final boolean lunchVoted;
         public final boolean snackVoted;
         public final String progressEmoji;
-        
-        public UserVotingState(Long userId, boolean breakfast, boolean lunch, 
-                              boolean snack, String emoji) {
+
+        public UserVotingState(Long userId, boolean breakfast, boolean lunch,
+                boolean snack, String emoji) {
             this.userId = userId;
             this.breakfastVoted = breakfast;
             this.lunchVoted = lunch;
             this.snackVoted = snack;
             this.progressEmoji = emoji;
         }
-        
+
         public boolean isComplete() {
             return breakfastVoted && lunchVoted && snackVoted;
         }
-        
+
         public int getCompletionPercentage() {
             int count = (breakfastVoted ? 1 : 0) + (lunchVoted ? 1 : 0) + (snackVoted ? 1 : 0);
             return (count * 100) / 3;

@@ -26,6 +26,17 @@ public class TelegramUser {
     @Column(nullable = false)
     private boolean admin = false;
 
+    private boolean blocked = false;   // default not blocked
+
+    // ... getters and setters ...
+
+    public boolean isBlocked() {
+        return blocked;
+    }
+
+    public void setBlocked(boolean blocked) {
+        this.blocked = blocked;
+    }
     public TelegramUser() {
     }
 
