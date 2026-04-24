@@ -291,7 +291,7 @@ import java.util.stream.Collectors;
 public class VotingService {
 
     private static final Logger log = LoggerFactory.getLogger(VotingService.class);
-    private static final LocalTime DEADLINE = LocalTime.of(11, 0);
+    private static final LocalTime VOTING_DEADLINE = LocalTime.of(18, 0);
 
     private final VoteRepository voteRepository;
     private final DishRepository dishRepository;
@@ -299,9 +299,9 @@ public class VotingService {
     private final ExcludedFoodRepository excludedFoodRepository;
 
     public VotingService(VoteRepository voteRepository,
-                         DishRepository dishRepository,
-                         TelegramUserRepository userRepository,
-                         ExcludedFoodRepository excludedFoodRepository) {
+            DishRepository dishRepository,
+            TelegramUserRepository userRepository,
+            ExcludedFoodRepository excludedFoodRepository) {
         this.voteRepository = voteRepository;
         this.dishRepository = dishRepository;
         this.userRepository = userRepository;
@@ -320,27 +320,27 @@ public class VotingService {
 
     @Transactional
     public VoteResult voteForDish(Long telegramUserId, Dish dish) {
-        // 1. Time check
-        if (LocalTime.now().isAfter(DEADLINE)) {
-            return VoteResult.error("Ovoz berish vaqti tugadi (11:00 dan keyin).");
+        // 1. Voting deadline check (13:00)
+        if (LocalTime.now().isAfter(VOTING_DEADLINE) || LocalTime.now().equals(VOTING_DEADLINE)) {
+            return VoteResult.error("Ovoz berish vaqti tugadi (13:00 dan keyin).");
         }
 
-        // 2. Exclusion check (yesterday's winner)
+        // 3. Exclusion check (yesterday's winner)
         if (isExcludedToday(dish.getId())) {
             return VoteResult.error("Ushbu taom bugun ovoz berish uchun mavjud emas (kechagi g'olib).");
         }
 
-        // 3. Get user (only for sequential unlock check)
+        // 4. Get user (only for sequential unlock check)
         TelegramUser user = userRepository.findByTelegramId(telegramUserId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // 4. Sequential unlock check
+        // 5. Sequential unlock check
         VoteCategory category = VoteCategory.fromName(dish.getCategory());
         if (!isCategoryAccessible(user, category)) {
             return VoteResult.error("Avval oldingi kategoriya uchun ovoz berishingiz kerak.");
         }
 
-        // 5. Check if already voted for this category today -> re-vote allowed
+        // 6. Check if already voted for this category today -> re-vote allowed
         Optional<Vote> existingVote = findTodayVote(telegramUserId, category);
         if (existingVote.isPresent()) {
             Vote vote = existingVote.get();
@@ -354,12 +354,17 @@ public class VotingService {
             voteRepository.delete(vote);
         }
 
-        // 6. Record new vote
+        // 7. Record new vote
         return recordVote(telegramUserId, dish, category);
     }
 
     @Transactional
     public VoteResult changeVote(Long telegramUserId, Dish newDish) {
+        // 1. Voting deadline check (13:00)
+        if (LocalTime.now().isAfter(VOTING_DEADLINE) || LocalTime.now().equals(VOTING_DEADLINE)) {
+            return VoteResult.error("Ovoz berish vaqti tugadi (13:00 dan keyin).");
+        }
+
         VoteCategory newCategory = VoteCategory.fromName(newDish.getCategory());
         if (newCategory == null) {
             return VoteResult.error("Unsupported dish category.");
@@ -448,7 +453,8 @@ public class VotingService {
         private final boolean alreadyVoted;
         private final boolean changed;
 
-        private VoteResult(boolean success, String message, Dish dish, Dish previousDish, boolean alreadyVoted, boolean changed) {
+        private VoteResult(boolean success, String message, Dish dish, Dish previousDish, boolean alreadyVoted,
+                boolean changed) {
             this.success = success;
             this.message = message;
             this.dish = dish;
@@ -466,12 +472,14 @@ public class VotingService {
         }
 
         public static VoteResult alreadyVotedSame(Dish dish) {
-            return new VoteResult(false, "Siz bugun allaqachon " + dish.getName() + " uchun ovoz bergansiz.", dish, null, true, false);
+            return new VoteResult(false, "Siz bugun allaqachon " + dish.getName() + " uchun ovoz bergansiz.", dish,
+                    null, true, false);
         }
 
         public static VoteResult alreadyVotedDifferent(Vote existingVote) {
             String current = existingVote != null ? existingVote.getDish().getName() : "boshqa taom";
-            return new VoteResult(false, "Siz bugun allaqachon " + current + " uchun ovoz bergansiz.", null, null, true, false);
+            return new VoteResult(false, "Siz bugun allaqachon " + current + " uchun ovoz bergansiz.", null, null, true,
+                    false);
         }
 
         public static VoteResult error(String message) {
@@ -482,23 +490,31 @@ public class VotingService {
             return error(message);
         }
 
-        public boolean isSuccess() { return success; }
-        public String getMessage() { return message; }
-        public Dish getDish() { return dish; }
-        public Dish getPreviousDish() { return previousDish; }
-        public boolean isAlreadyVoted() { return alreadyVoted; }
-        public boolean isChanged() { return changed; }
+        public boolean isSuccess() {
+            return success;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public Dish getDish() {
+            return dish;
+        }
+
+        public Dish getPreviousDish() {
+            return previousDish;
+        }
+
+        public boolean isAlreadyVoted() {
+            return alreadyVoted;
+        }
+
+        public boolean isChanged() {
+            return changed;
+        }
     }
 
-    // Example method that caused the error
-    public void createVote(Long userId, String foodName) {
-        Vote vote = new Vote();           // use default constructor
-        vote.setUserId(userId);
-        vote.setFoodName(foodName);
-        vote.setVoteDate(LocalDate.now());
-        // set other fields as needed...
-        voteRepository.save(vote);
-    }
     // ========== Scheduler inner class (can be moved to separate file) ==========
     @Component
     public static class VoteResetScheduler {
@@ -516,7 +532,8 @@ public class VotingService {
 
             for (VoteCategory category : VoteCategory.values()) {
                 List<Object[]> results = voteRepository.findVoteCountsByCategoryAndDate(category.name(), yesterday);
-                if (results.isEmpty()) continue;
+                if (results.isEmpty())
+                    continue;
 
                 int maxVotes = results.stream()
                         .mapToInt(row -> ((Number) row[1]).intValue())

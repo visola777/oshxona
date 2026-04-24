@@ -43,8 +43,8 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
     private final AdminService adminService;
 
     public TelegramMealVoteBot(BotConfig botConfig, BotMessages botMessages, BotUserService userService,
-                               MealDishService dishService, VotingService votingService,
-                               StatisticsService statisticsService, AdminService adminService) {
+            MealDishService dishService, VotingService votingService,
+            StatisticsService statisticsService, AdminService adminService) {
         this.botConfig = botConfig;
         this.botMessages = botMessages;
         this.userService = userService;
@@ -83,7 +83,8 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
     // ----------------------------------------------------------------------
     private void handleTextMessage(Message message) {
         User from = message.getFrom();
-        if (from == null) return;
+        if (from == null)
+            return;
 
         TelegramUser user = userService.registerOrUpdate(
                 from.getId(), from.getUserName(), from.getFirstName(),
@@ -114,10 +115,12 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
     // ----------------------------------------------------------------------
     private void handleCallbackQuery(Update update) {
         var callback = update.getCallbackQuery();
-        if (callback == null) return;
+        if (callback == null)
+            return;
 
         User from = callback.getFrom();
-        if (from == null) return;
+        if (from == null)
+            return;
 
         TelegramUser user = userService.registerOrUpdate(
                 from.getId(), from.getUserName(), from.getFirstName(),
@@ -147,12 +150,14 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
         // Show dish details
         else if (data.startsWith("DISH:")) {
             Long dishId = parseId(data);
-            if (dishId != null) sendDishDetail(chatId, user, dishId);
+            if (dishId != null)
+                sendDishDetail(chatId, user, dishId);
         }
         // Confirm vote
         else if (data.startsWith("CONFIRM_VOTE:")) {
             Long dishId = parseId(data);
-            if (dishId != null) handleConfirmVote(chatId, user, dishId);
+            if (dishId != null)
+                handleConfirmVote(chatId, user, dishId);
         }
         // Show statistics (today's top)
         else if (data.equals("SHOW_STATS")) {
@@ -169,8 +174,7 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
         // Admin fallback
         else if (data.startsWith("ADMIN:")) {
             sendAdminMenu(chatId, user);
-        }
-        else {
+        } else {
             sendText(chatId, "Noma'lum buyruq. /start bosing.", user.getLanguageCode());
         }
 
@@ -243,7 +247,7 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
 
         // Voting time check
         if (!isVotingAllowed()) {
-            sendText(chatId, "⚠️ Ovoz berish vaqti tugadi (11:00 dan keyin).", user.getLanguageCode());
+            sendText(chatId, "⚠️ Ovoz berish vaqti tugadi (13:00 dan keyin).", user.getLanguageCode());
             return;
         }
 
@@ -295,12 +299,13 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
             return;
         }
 
-        String caption = "🍽️ *" + dish.getName() + "*\n\n" +
+        // Build caption without markdown special characters problem
+        String captionRaw = "🍽️ " + dish.getName() + "\n\n" +
                 (dish.getDescription() != null ? dish.getDescription() + "\n\n" : "") +
-                "📊 Hozirgi ovozlar: *" + dish.getTotalVotes() + "*\n\n" +
+                "📊 Hozirgi ovozlar: " + dish.getTotalVotes() + "\n\n" +
                 "✅ Ushbu taomga ovoz berishni tasdiqlaysizmi?";
 
-        // Inline buttons: Back and Confirm
+        // Create inline buttons (always present)
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
@@ -315,29 +320,44 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
         rows.add(List.of(back, confirm));
         markup.setKeyboard(rows);
 
+        // Try to send photo + caption (if URL exists)
+        boolean sent = false;
         if (dish.getPhotoUrl() != null && !dish.getPhotoUrl().isBlank()) {
             SendPhoto photo = new SendPhoto();
             photo.setChatId(chatId.toString());
             photo.setPhoto(new InputFile(dish.getPhotoUrl()));
-            photo.setCaption(caption);
-            photo.setParseMode("Markdown");
+            photo.setCaption(captionRaw);
             photo.setReplyMarkup(markup);
+            // Don't use markdown for photo caption – it's risky. Send as plain text.
             try {
                 execute(photo);
+                sent = true;
             } catch (TelegramApiException e) {
-                log.error("Failed to send photo", e);
-                sendText(chatId, caption, user.getLanguageCode());
+                log.warn("Photo failed for dish {}: {}", dish.getName(), e.getMessage());
+                // fall through to text-only
             }
-        } else {
+        }
+
+        if (!sent) {
+            // Send text message with buttons – try Markdown first, then plain text
             SendMessage msg = new SendMessage();
             msg.setChatId(chatId.toString());
-            msg.setText(caption);
-            msg.setParseMode("Markdown");
+            msg.setText(captionRaw);
             msg.setReplyMarkup(markup);
+
+            // Try Markdown
+            msg.setParseMode("Markdown");
             try {
                 execute(msg);
             } catch (TelegramApiException e) {
-                log.error("Failed to send dish detail", e);
+                // Markdown failed – send without formatting
+                log.warn("Markdown failed, sending plain text: {}", e.getMessage());
+                msg.setParseMode(null);
+                try {
+                    execute(msg);
+                } catch (TelegramApiException ex) {
+                    log.error("Failed to send dish detail even as plain text", ex);
+                }
             }
         }
     }
@@ -347,7 +367,7 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
     // ----------------------------------------------------------------------
     private void handleConfirmVote(Long chatId, TelegramUser user, Long dishId) {
         if (!isVotingAllowed()) {
-            sendText(chatId, "⚠️ Ovoz berish vaqti tugadi (11:00 dan keyin).", user.getLanguageCode());
+            sendText(chatId, "⚠️ Ovoz berish vaqti tugadi (13:00 dan keyin).", user.getLanguageCode());
             return;
         }
 
@@ -416,7 +436,7 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
     }
 
     private boolean isVotingAllowed() {
-        return LocalTime.now().isBefore(LocalTime.parse("11:00"));
+        return LocalTime.now().isBefore(LocalTime.parse("15:00"));
     }
 
     // ----------------------------------------------------------------------
@@ -428,32 +448,35 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
             return;
         }
         String message = """
-        🔧 Admin panel:
-        /export - Eksport CSV
-        /reset_today - Bugungi ovozlarni tozalash
-        /broadcast <matn> - Xabar yuborish
-        /admin - Menyuni yangilash
-        """;
+                🔧 Admin panel:
+                /export - Eksport CSV
+                /reset_today - Bugungi ovozlarni tozalash
+                /broadcast <matn> - Xabar yuborish
+                /admin - Menyuni yangilash
+                """;
         sendText(chatId, message, user.getLanguageCode());
     }
 
     private void handleBroadcast(Message message, TelegramUser user) {
-        if (!userService.isAdmin(user.getTelegramId())) return;
+        if (!userService.isAdmin(user.getTelegramId()))
+            return;
         String payload = message.getText().replaceFirst("/broadcast", "").trim();
         if (payload.isBlank()) {
             sendText(message.getChatId(), "Ishlatish: /broadcast xabar matni", user.getLanguageCode());
             return;
         }
-        userService.getAllUsers().forEach(target ->
-                sendText(target.getTelegramId(), "📢 E'lon:\n" + payload, target.getLanguageCode()));
-        sendText(message.getChatId(), "Xabar " + userService.getAllUsers().size() + " foydalanuvchiga yuborildi.", user.getLanguageCode());
+        userService.getAllUsers()
+                .forEach(target -> sendText(target.getTelegramId(), "📢 E'lon:\n" + payload, target.getLanguageCode()));
+        sendText(message.getChatId(), "Xabar " + userService.getAllUsers().size() + " foydalanuvchiga yuborildi.",
+                user.getLanguageCode());
     }
 
     private void handleExport(Message message, TelegramUser user) {
-        if (!userService.isAdmin(user.getTelegramId())) return;
+        if (!userService.isAdmin(user.getTelegramId()))
+            return;
         byte[] data = adminService.exportVotesCsv();
         SendDocument doc = new SendDocument();
-        doc.setChatId(message.getChatId().toString());
+        doc.setChatId(message.getChatId().toString());      
         doc.setDocument(new InputFile(new ByteArrayInputStream(data), "votes.csv"));
         doc.setCaption("Ovozlar eksporti");
         try {
@@ -465,7 +488,8 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
     }
 
     private void handleResetToday(Message message, TelegramUser user) {
-        if (!userService.isAdmin(user.getTelegramId())) return;
+        if (!userService.isAdmin(user.getTelegramId()))
+            return;
         adminService.resetTodayVotes();
         sendText(message.getChatId(), "Bugungi ovozlar tozalandi.", user.getLanguageCode());
     }
@@ -499,7 +523,8 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
 
     private Long parseId(String data) {
         String[] parts = data.split(":");
-        if (parts.length < 2) return null;
+        if (parts.length < 2)
+            return null;
         try {
             return Long.parseLong(parts[1]);
         } catch (NumberFormatException e) {
@@ -519,7 +544,7 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
             }
             if (!hasVotedAll) {
                 sendText(user.getTelegramId(),
-                        "🌅 Eslatma: Iltimos, bugungi ovozlaringizni 11:00 dan oldin bering!\n" +
+                        "🌅 Eslatma: Iltimos, bugungi ovozlaringizni 13:00 gacha bering!\n" +
                                 "Tonggi ovqat → Tushlik → Poldnik",
                         user.getLanguageCode());
             }

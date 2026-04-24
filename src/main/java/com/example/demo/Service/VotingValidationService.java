@@ -15,7 +15,7 @@ import java.util.Optional;
 /**
  * Service for validating voting rules and constraints
  * Implements the voting rules visualization:
- * - Deadline: 11:00 AM
+ * - Voting Deadline: 13:00 (1 PM)
  * - Revote: Replaces previous vote
  * - Exclusion: Yesterday's winner excluded
  * - One vote per category per day
@@ -26,7 +26,7 @@ public class VotingValidationService {
     private final VoteRepository voteRepository;
     private final DishRepository dishRepository;
     private final TelegramUserRepository userRepository;
-    private static final LocalTime VOTING_DEADLINE = LocalTime.of(11, 0);
+    private static final LocalTime VOTING_DEADLINE = LocalTime.of(18, 0);
 
     public VotingValidationService(VoteRepository voteRepository,
             DishRepository dishRepository,
@@ -37,10 +37,11 @@ public class VotingValidationService {
     }
 
     /**
-     * Check if voting is allowed at current time (before 11:00)
+     * Check if voting is allowed at current time (before 13:00)
      */
     public boolean isVotingTimeValid() {
-        return LocalTime.now().isBefore(VOTING_DEADLINE);
+        LocalTime now = LocalTime.now();
+        return now.isBefore(VOTING_DEADLINE);
     }
 
     /**

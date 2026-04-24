@@ -172,7 +172,7 @@ public class DailySchedulerService {
     }
 
     // Optional: log statistics at 11:05
-    @Scheduled(cron = "0 5 11 * * ?")
+    @Scheduled(cron = "0 5 12 * * ?")
     public void logMorningStats() {
         LocalDate today = LocalDate.now();
         long total = voteRepository.countByVoteDate(today);
