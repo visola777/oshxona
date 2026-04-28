@@ -32,6 +32,10 @@ public class DishService {
         return dishRepository.findById(id).orElse(null);
     }
 
+    public Dish getDish(Long id) {
+        return getDishById(id);
+    }
+
     public Dish getDishByName(String name) {
         return dishRepository.findByNameIgnoreCase(name).orElse(null);
     }
@@ -41,6 +45,63 @@ public class DishService {
         Dish saved = dishRepository.save(dish);
         log.debug("Saved dish {} with id {}", saved.getName(), saved.getId());
         return saved;
+    }
+
+    // -----------------------------------------------------------------------
+    // Navigation support for dish browsing with counter display
+    // -----------------------------------------------------------------------
+
+    /**
+     * Get count of active dishes in a category
+     */
+    public int getDishCountByCategory(String category) {
+        return getActiveDishesByCategory(category).size();
+    }
+
+    /**
+     * Get dish at specific index in a category (ordered by votes)
+     */
+    public Dish getDishByIndexInCategory(String category, int index) {
+        List<Dish> dishes = getActiveDishesByCategory(category);
+        if (index < 0 || index >= dishes.size()) {
+            return null;
+        }
+        return dishes.get(index);
+    }
+
+    /**
+     * Get index of a dish in its category
+     */
+    public int getDishIndexInCategory(Long dishId, String category) {
+        List<Dish> dishes = getActiveDishesByCategory(category);
+        for (int i = 0; i < dishes.size(); i++) {
+            if (dishes.get(i).getId().equals(dishId)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Get next dish in category (for navigation)
+     */
+    public Dish getNextDishInCategory(Long currentDishId, String category) {
+        int currentIndex = getDishIndexInCategory(currentDishId, category);
+        if (currentIndex >= 0 && currentIndex < getDishCountByCategory(category) - 1) {
+            return getDishByIndexInCategory(category, currentIndex + 1);
+        }
+        return null;
+    }
+
+    /**
+     * Get previous dish in category (for navigation)
+     */
+    public Dish getPreviousDishInCategory(Long currentDishId, String category) {
+        int currentIndex = getDishIndexInCategory(currentDishId, category);
+        if (currentIndex > 0) {
+            return getDishByIndexInCategory(category, currentIndex - 1);
+        }
+        return null;
     }
 
     public List<Dish> getDefaultDishes() {

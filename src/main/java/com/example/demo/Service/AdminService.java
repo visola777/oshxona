@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -287,6 +288,85 @@ public class AdminService {
                         "⏰ Generated: %s",
                 stats.totalUsers, stats.totalFoods, stats.excludedFoods,
                 stats.votesToday, stats.generatedAt.toString());
+    }
+
+    // ===================== EXCEL EXPORT/IMPORT =====================
+
+    /**
+     * Export all dishes to Excel (injected service)
+     */
+    public File exportAllDishesToExcel(DishExcelExportService exportService) {
+        return exportService.exportAllDishesToExcel();
+    }
+
+    /**
+     * Export active dishes to Excel
+     */
+    public File exportActiveDishesToExcel(DishExcelExportService exportService) {
+        return exportService.exportActiveDishesToExcel();
+    }
+
+    /**
+     * Export dishes by category
+     */
+    public File exportDishesByCategory(DishExcelExportService exportService, String category) {
+        return exportService.exportDishesByCategory(category);
+    }
+
+    /**
+     * Batch disable dishes
+     */
+    @Transactional
+    public AdminResult batchDisableDishes(DishExcelExportService exportService, List<Long> dishIds) {
+        try {
+            int count = exportService.batchDisableDishes(dishIds);
+            return new AdminResult(true, String.format("✅ %d ta dish nofaol qilindi", count));
+        } catch (Exception e) {
+            log.error("❌ Batch disable xatosi: {}", e.getMessage());
+            return new AdminResult(false, "❌ Error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Batch enable dishes
+     */
+    @Transactional
+    public AdminResult batchEnableDishes(DishExcelExportService exportService, List<Long> dishIds) {
+        try {
+            int count = exportService.batchEnableDishes(dishIds);
+            return new AdminResult(true, String.format("✅ %d ta dish faol qilindi", count));
+        } catch (Exception e) {
+            log.error("❌ Batch enable xatosi: {}", e.getMessage());
+            return new AdminResult(false, "❌ Error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Batch exclude dishes
+     */
+    @Transactional
+    public AdminResult batchExcludeDishes(DishExcelExportService exportService, List<Long> dishIds) {
+        try {
+            int count = exportService.batchExcludeDishes(dishIds);
+            return new AdminResult(true, String.format("✅ %d ta dish istisno qilindi", count));
+        } catch (Exception e) {
+            log.error("❌ Batch exclude xatosi: {}", e.getMessage());
+            return new AdminResult(false, "❌ Error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Batch reset votes
+     */
+    @Transactional
+    public AdminResult batchResetVotes(DishExcelExportService exportService, List<Long> dishIds) {
+        try {
+            int count = exportService.batchResetVotes(dishIds);
+            return new AdminResult(true, String.format("✅ %d ta dish ovozlari nollandi", count));
+        } catch (Exception e) {
+            log.error("❌ Batch reset xatosi: {}", e.getMessage());
+            return new AdminResult(false, "❌ Error: " + e.getMessage());
+        }
     }
 
     // ===================== ADMIN RESULT & STATISTICS CLASSES =====================
