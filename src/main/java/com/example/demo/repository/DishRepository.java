@@ -11,11 +11,17 @@ import java.util.Optional;
 
 @Repository
 public interface DishRepository extends JpaRepository<Dish, Long> {
-    List<Dish> findAllByCategoryIgnoreCaseAndActiveTrueOrderByTotalVotesDesc(String category);
-    List<Dish> findAllByActiveTrueOrderByTotalVotesDesc();
-    Optional<Dish> findByNameIgnoreCase(String name);
-    // Find all dishes with exactly the given name (case-sensitive)
+
     List<Dish> findByName(String name);
+
+
+    List<Dish> findAllByActiveTrueOrderByTotalVotesDesc();
+
+    List<Dish> findAllByCategoryIgnoreCaseAndActiveTrueOrderByTotalVotesDesc(String category);
+
+    Optional<Object> findByNameIgnoreCase(String name);
+    // Find all dishes with exactly the given name (case-sensitive)
+    List<Dish> z(String name);
 
     // Find all dishes in a given category
     List<Dish> findByCategory(String category);

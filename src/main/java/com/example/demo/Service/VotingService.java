@@ -283,6 +283,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -531,16 +532,18 @@ public class VotingService {
             LocalDate today = LocalDate.now();
 
             for (VoteCategory category : VoteCategory.values()) {
-                List<Object[]> results = voteRepository.findVoteCountsByCategoryAndDate(category.name(), yesterday);
+                Collection<Object> results = voteRepository.findVoteCountsByCategoryAndDate(category.name(), yesterday);
                 if (results.isEmpty())
                     continue;
 
                 int maxVotes = results.stream()
+                        .map(obj -> (Object[]) obj)
                         .mapToInt(row -> ((Number) row[1]).intValue())
                         .max()
                         .orElse(0);
 
                 List<Long> winnerIds = results.stream()
+                        .map(obj -> (Object[]) obj)
                         .filter(row -> ((Number) row[1]).intValue() == maxVotes)
                         .map(row -> (Long) row[0])
                         .collect(Collectors.toList());

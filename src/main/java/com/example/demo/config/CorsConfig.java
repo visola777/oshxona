@@ -25,5 +25,6 @@ public class CorsConfig implements WebMvcConfigurer {
                 .allowedHeaders("*")
                 .maxAge(3600)
                 .allowCredentials(false);
+
     }
 }

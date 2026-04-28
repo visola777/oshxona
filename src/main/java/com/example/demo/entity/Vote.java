@@ -128,7 +128,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "votes")
+@Table(name = "Vote")
 public class Vote {
 
     @Id

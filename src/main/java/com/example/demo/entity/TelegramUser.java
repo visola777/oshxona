@@ -12,6 +12,7 @@ public class TelegramUser {
 
     @Column(nullable = false, unique = true)
     private Long telegramId;
+    private boolean blocked;
 
     private String username;
     private String firstName;
@@ -26,7 +27,7 @@ public class TelegramUser {
     @Column(nullable = false)
     private boolean admin = false;
 
-    private boolean blocked = false;   // default not blocked
+      // default not blocked
 
     // ... getters and setters ...
 
@@ -125,4 +126,5 @@ public class TelegramUser {
     public void setAdmin(boolean admin) {
         this.admin = admin;
     }
+
 }

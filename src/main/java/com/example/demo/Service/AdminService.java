@@ -27,15 +27,18 @@ public class AdminService {
     private final VoteRepository voteRepository;
     private final DishRepository dishRepository;
     private final TelegramUserRepository userRepository;
+    private final ExcelDishService excelDishService;
 
     public AdminService(BotUserService userService,
-            VoteRepository voteRepository,
-            DishRepository dishRepository,
-            TelegramUserRepository userRepository) {
+                        VoteRepository voteRepository,
+                        DishRepository dishRepository,
+                        TelegramUserRepository userRepository,
+                        ExcelDishService excelDishService) {
         this.userService = userService;
         this.voteRepository = voteRepository;
         this.dishRepository = dishRepository;
         this.userRepository = userRepository;
+        this.excelDishService = excelDishService;
     }
 
     public long countVotesToday() {
@@ -95,8 +98,13 @@ public class AdminService {
             newDish.setExcluded(false);
             newDish.setCreatedAt(LocalDateTime.now());
 
-            dishRepository.save(newDish);
-            log.info("✅ Food added: {} ({})", name, category);
+            // Save to database
+            Dish saved = dishRepository.save(newDish);
+            
+            // Also save to Excel
+            excelDishService.addDishToExcel(saved);
+            
+            log.info("✅ Food added: {} ({}) - saved to DB and Excel", name, category);
             return new AdminResult(true, "✅ Food added: " + name);
         } catch (Exception e) {
             log.error("❌ Error adding food: {}", e.getMessage());
@@ -116,12 +124,9 @@ public class AdminService {
             }
 
             Dish dish = dishOpt.get();
-            if (name != null && !name.isEmpty())
-                dish.setName(name);
-            if (description != null && !description.isEmpty())
-                dish.setDescription(description);
-            if (photoUrl != null && !photoUrl.isEmpty())
-                dish.setPhotoUrl(photoUrl);
+            if (name != null && !name.isEmpty()) dish.setName(name);
+            if (description != null && !description.isEmpty()) dish.setDescription(description);
+            if (photoUrl != null && !photoUrl.isEmpty()) dish.setPhotoUrl(photoUrl);
 
             dishRepository.save(dish);
             log.info("✏️ Food updated: {}", dish.getName());
@@ -271,7 +276,8 @@ public class AdminService {
                 dishRepository.count(),
                 getExcludedFoods().size(),
                 voteRepository.findAllByVoteDate(LocalDate.now()).size(),
-                LocalDateTime.now());
+                LocalDateTime.now()
+        );
     }
 
     /**
@@ -287,7 +293,8 @@ public class AdminService {
                         "✅ Today's Votes: %d\n" +
                         "⏰ Generated: %s",
                 stats.totalUsers, stats.totalFoods, stats.excludedFoods,
-                stats.votesToday, stats.generatedAt.toString());
+                stats.votesToday, stats.generatedAt.toString()
+        );
     }
 
     // ===================== EXCEL EXPORT/IMPORT =====================
@@ -388,12 +395,13 @@ public class AdminService {
         public final long votesToday;
         public final LocalDateTime generatedAt;
 
-        public AdminStatistics(long totalUsers, long totalFoods, long excludedFoods, 
-                              long votesToday, LocalDateTime generatedAt) {
+        public AdminStatistics(long totalUsers, long totalFoods, long excludedFoods,
+                               long votesToday, LocalDateTime generatedAt) {
             this.totalUsers = totalUsers;
             this.totalFoods = totalFoods;
             this.excludedFoods = excludedFoods;
             this.votesToday = votesToday;
             this.generatedAt = generatedAt;
         }
-    }}
+    }
+}

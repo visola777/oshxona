@@ -40,7 +40,7 @@ public class StatisticsService {
             List<Dish> dishes = dishRepository.findActiveByCategory(category.name());
             if (dishes.isEmpty()) continue;
 
-            int totalVotes = voteRepository.countByCategoryAndDate(category.name(), today);
+            long totalVotes = voteRepository.countByCategoryAndDate(category.name(), today);
             if (totalVotes == 0) {
                 sb.append("🍽️ *").append(category.label(languageCode)).append("*\n");
                 sb.append("   Hali hech qanday ovoz yo'q.\n\n");
@@ -49,6 +49,7 @@ public class StatisticsService {
 
             Map<Long, Integer> voteCounts = voteRepository.findVoteCountsByCategoryAndDate(category.name(), today)
                     .stream()
+                    .map(obj -> (Object[]) obj)
                     .collect(Collectors.toMap(
                             row -> (Long) row[0],
                             row -> ((Number) row[1]).intValue()
@@ -63,7 +64,7 @@ public class StatisticsService {
             sb.append("🍽️ *").append(category.label(languageCode)).append("*\n");
             for (Dish dish : sortedDishes) {
                 int votes = voteCounts.getOrDefault(dish.getId(), 0);
-                int percent = totalVotes == 0 ? 0 : (votes * 100 / totalVotes);
+                int percent = totalVotes == 0 ? 0 : (int)(votes * 100 / totalVotes);
                 sb.append("• ").append(dish.getName())
                         .append(" – ").append(percent).append("% (")
                         .append(votes).append(" ovoz)\n");
@@ -86,8 +87,7 @@ public class StatisticsService {
             Dish dish = (Dish) row[0];
             long count = (Long) row[1];
             sb.append(formatRank(i + 1)).append(" ").append(dish.getName()).append(" — ").append(count)
-                    .append(" votes\n");
-        }
+                    .append(" ta ovoz\n");        }
         return sb.toString();
     }
 

@@ -159,36 +159,6 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
             if (dishId != null)
                 handleConfirmVote(chatId, user, dishId);
         }
-        // Dish navigation - next
-        else if (data.startsWith("DISH_NAV_NEXT:")) {
-            Long currentDishId = parseId(data);
-            if (currentDishId != null) {
-                Dish currentDish = dishService.getDish(currentDishId);
-                if (currentDish != null) {
-                    Dish nextDish = dishService.getNextDishInCategory(currentDishId, currentDish.getCategory());
-                    if (nextDish != null) {
-                        sendDishDetail(chatId, user, nextDish.getId());
-                    }
-                }
-            }
-        }
-        // Dish navigation - previous
-        else if (data.startsWith("DISH_NAV_PREV:")) {
-            Long currentDishId = parseId(data);
-            if (currentDishId != null) {
-                Dish currentDish = dishService.getDish(currentDishId);
-                if (currentDish != null) {
-                    Dish prevDish = dishService.getPreviousDishInCategory(currentDishId, currentDish.getCategory());
-                    if (prevDish != null) {
-                        sendDishDetail(chatId, user, prevDish.getId());
-                    }
-                }
-            }
-        }
-        // Dish navigation - counter (no action, just acknowledge)
-        else if (data.startsWith("DISH_NAV_COUNTER")) {
-            // Just acknowledge, no action needed
-        }
         // Show statistics (today's top)
         else if (data.equals("SHOW_STATS")) {
             sendTodayStats(chatId, user);
@@ -329,50 +299,16 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
             return;
         }
 
-        // Get navigation information
-        int currentIndex = dishService.getDishIndexInCategory(dishId, dish.getCategory());
-        int totalCount = dishService.getDishCountByCategory(dish.getCategory());
-        boolean hasPrevious = currentIndex > 0;
-        boolean hasNext = currentIndex < totalCount - 1;
-
-        // Build caption with dish counter display
+        // Build caption without markdown special characters problem
         String captionRaw = "🍽️ " + dish.getName() + "\n\n" +
                 (dish.getDescription() != null ? dish.getDescription() + "\n\n" : "") +
-                "📊 Hozirgi ovozlar: " + dish.getTotalVotes() + "\n" +
-                "📍 Taomlar: " + (currentIndex + 1) + "/" + totalCount + "\n\n" +
+                "📊 Hozirgi ovozlar: " + dish.getTotalVotes() + "\n\n" +
                 "✅ Ushbu taomga ovoz berishni tasdiqlaysizmi?";
 
-        // Create inline buttons with navigation
+        // Create inline buttons (always present)
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
 
-        // Navigation row (prev/counter/next)
-        if (hasPrevious || hasNext) {
-            List<InlineKeyboardButton> navRow = new ArrayList<>();
-
-            if (hasPrevious) {
-                InlineKeyboardButton prevBtn = new InlineKeyboardButton();
-                prevBtn.setText("⬅️ Oldingi");
-                prevBtn.setCallbackData("DISH_NAV_PREV:" + dish.getId());
-                navRow.add(prevBtn);
-            }
-
-            InlineKeyboardButton counterBtn = new InlineKeyboardButton();
-            counterBtn.setText(String.format("%d/%d", currentIndex + 1, totalCount));
-            counterBtn.setCallbackData("DISH_NAV_COUNTER");
-            navRow.add(counterBtn);
-
-            if (hasNext) {
-                InlineKeyboardButton nextBtn = new InlineKeyboardButton();
-                nextBtn.setText("Keyingi ➡️");
-                nextBtn.setCallbackData("DISH_NAV_NEXT:" + dish.getId());
-                navRow.add(nextBtn);
-            }
-
-            rows.add(navRow);
-        }
-
-        // Action buttons row
         InlineKeyboardButton back = new InlineKeyboardButton();
         back.setText("⬅️ Orqaga");
         back.setCallbackData("BACK_TO_CATEGORY:" + dish.getCategory());
@@ -540,7 +476,7 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
             return;
         byte[] data = adminService.exportVotesCsv();
         SendDocument doc = new SendDocument();
-        doc.setChatId(message.getChatId().toString());
+        doc.setChatId(message.getChatId().toString());      
         doc.setDocument(new InputFile(new ByteArrayInputStream(data), "votes.csv"));
         doc.setCaption("Ovozlar eksporti");
         try {
