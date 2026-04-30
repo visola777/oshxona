@@ -4,9 +4,11 @@ import com.example.demo.entity.Dish;
 import com.example.demo.entity.Vote;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -46,10 +48,14 @@ public interface VoteRepository extends JpaRepository<Vote, Long> {
     @Query("SELECT COUNT(DISTINCT v.userId) FROM Vote v WHERE v.voteDate = :voteDate")
     long countUniqueVotersByDate(LocalDate voteDate);
 
-    Collection<Object> findVoteCountsByCategoryAndDate(String name, LocalDate today);
+    @Query("SELECT v.dish.id, COUNT(v) FROM Vote v WHERE v.category = :category AND v.voteDate = :date GROUP BY v.dish.id")
+    List<Object[]> findVoteCountsByCategoryAndDate(@Param("category") String category, @Param("date") LocalDate date);
 
-    boolean hasVotedToday(Long telegramUserId, String name);
 
+
+//    boolean hasVotedToday(Long telegramUserId, String name);
+
+    boolean existsByUserIdAndVoteDateAfter(Long userId, LocalDateTime todayStart);
     @Query("SELECT COUNT(v) FROM Vote v WHERE v.voteDate = :voteDate")
     long countByVoteDate(LocalDate voteDate);
 

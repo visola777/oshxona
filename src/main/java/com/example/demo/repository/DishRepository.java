@@ -21,7 +21,7 @@ public interface DishRepository extends JpaRepository<Dish, Long> {
 
     Optional<Object> findByNameIgnoreCase(String name);
     // Find all dishes with exactly the given name (case-sensitive)
-    List<Dish> z(String name);
+//    List<Dish> z(String name);
 
     // Find all dishes in a given category
     List<Dish> findByCategory(String category);

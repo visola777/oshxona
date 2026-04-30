@@ -436,7 +436,7 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
     }
 
     private boolean isVotingAllowed() {
-        return LocalTime.now().isBefore(LocalTime.parse("15:00"));
+        return LocalTime.now().isBefore(LocalTime.parse("21:00"));
     }
 
     // ----------------------------------------------------------------------
@@ -476,7 +476,7 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
             return;
         byte[] data = adminService.exportVotesCsv();
         SendDocument doc = new SendDocument();
-        doc.setChatId(message.getChatId().toString());      
+        doc.setChatId(message.getChatId().toString());
         doc.setDocument(new InputFile(new ByteArrayInputStream(data), "votes.csv"));
         doc.setCaption("Ovozlar eksporti");
         try {
@@ -500,13 +500,38 @@ public class TelegramMealVoteBot extends TelegramLongPollingBot {
     private void sendText(Long chatId, String text, String lang) {
         SendMessage msg = new SendMessage();
         msg.setChatId(chatId.toString());
-        msg.setText(text);
-        msg.enableMarkdown(true);
+        msg.setText(sanitizeMarkdown(text));
         try {
+            msg.setParseMode("Markdown");
             execute(msg);
         } catch (TelegramApiException e) {
-            log.error("Send text failed", e);
+            log.warn("Markdown failed, sending as plain text: {}", e.getMessage());
+            msg.setParseMode(null);
+            try {
+                execute(msg);
+            } catch (TelegramApiException ex) {
+                log.error("Send text failed even without markdown", ex);
+            }
         }
+    }
+
+    /**
+     * Sanitize text to prevent Markdown parsing errors
+     */
+    private String sanitizeMarkdown(String text) {
+        if (text == null)
+            return "";
+        // Escape problematic characters for Markdown v2
+        return text
+                .replace("_", "\\_")
+                .replace("*", "\\*")
+                .replace("[", "\\[")
+                .replace("]", "\\]")
+                .replace("(", "\\(")
+                .replace(")", "\\)")
+                .replace("~", "\\~")
+                .replace("`", "\\`")
+                .replace(">", "\\>");
     }
 
     private void answerCallback(String callbackId, String text) {

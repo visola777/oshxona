@@ -13,12 +13,12 @@ import java.util.List;
 
 @Service
 public class DishService {
+    private static final Logger log = LoggerFactory.getLogger(DishService.class);
+    private final DishRepository dishRepository;
+
     public DishService(DishRepository dishRepository) {
         this.dishRepository = dishRepository;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(DishService.class);
-    private final DishRepository dishRepository;
 
     public List<Dish> getActiveDishesByCategory(String category) {
         return dishRepository.findAllByCategoryIgnoreCaseAndActiveTrueOrderByTotalVotesDesc(category);
@@ -37,7 +37,7 @@ public class DishService {
     }
 
     public Dish getDishByName(String name) {
-        return dishRepository.findByNameIgnoreCase(name).orElse(null);
+        return (Dish) dishRepository.findByNameIgnoreCase(name).orElse(null);
     }
 
     @Transactional

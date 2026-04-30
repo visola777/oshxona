@@ -1,7 +1,7 @@
 package com.example.demo;
 
 import com.example.demo.Service.StatisticsService;
-import com.example.demo.Service.DishService;
+import com.example.demo.Service.MealDishService;
 import com.example.demo.Service.VotingService;
 import com.example.demo.entity.Dish;
 import com.example.demo.entity.Vote;
@@ -28,7 +28,7 @@ class StatisticsServiceTest {
     private VotingService votingService;
 
     @Mock
-    private DishService dishService;
+    private MealDishService dishService;
 
     @InjectMocks
     private StatisticsService statisticsService;
@@ -57,9 +57,8 @@ class StatisticsServiceTest {
     @DisplayName("renderGlobalTop — taomlar mavjud — to'g'ri matn qaytarishi kerak")
     void renderGlobalTop_withVotes_shouldReturnFormattedText() {
         when(votingService.getGlobalTopDishes()).thenReturn(List.of(
-                new Object[]{dish1, 10L},
-                new Object[]{dish2, 7L}
-        ));
+                new Object[] { dish1, 10L },
+                new Object[] { dish2, 7L }));
 
         String result = statisticsService.renderGlobalTop(10, "en");
 
@@ -149,13 +148,12 @@ class StatisticsServiceTest {
     @DisplayName("renderGlobalTop — limit ishlashi kerak (5 ta so'rasak 5 tadan oshmasin)")
     void renderGlobalTop_shouldRespectLimit() {
         List<Object[]> many = List.of(
-                new Object[]{dish1, 10L},
-                new Object[]{dish2, 7L},
-                new Object[]{dish1, 5L},
-                new Object[]{dish2, 4L},
-                new Object[]{dish1, 3L},
-                new Object[]{dish2, 2L}
-        );
+                new Object[] { dish1, 10L },
+                new Object[] { dish2, 7L },
+                new Object[] { dish1, 5L },
+                new Object[] { dish2, 4L },
+                new Object[] { dish1, 3L },
+                new Object[] { dish2, 2L });
         when(votingService.getGlobalTopDishes()).thenReturn(many);
 
         String result = statisticsService.renderGlobalTop(3, "en");
