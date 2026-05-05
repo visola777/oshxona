@@ -16,13 +16,14 @@ import java.util.List;
 /**
  * Excel fayldan Dish larni import qilish servisi.
  *
- * Excel kolonkalar tartibi (dishes.xlsx):
- *   0 — name        (taom nomi)      MAJBURIY
- *   1 — category    (BREAKFAST / LUNCH / SNACK)  MAJBURIY
- *   2 — photoUrl    (rasm URL)       MAJBURIY
- *   3 — description (tavsif)         ixtiyoriy
+ * BARCHA taom ma'lumoti excelda bo'ladi:
+ *   0 — name        (taom nomi)                      MAJBURIY
+ *   1 — category    (BREAKFAST / LUNCH / SNACK)      MAJBURIY
+ *   2 — photoUrl    (rasm URL)                       MAJBURIY
+ *   3 — description (opisaniya / tavsif)             MAJBURIY
  *
  * Birinchi qator — header (o'tkazib yuboriladi).
+ * Sen excelni o'zgartirsang — bot menyusi ham o'zgaradi.
  */
 @Service
 public class DishExcelImportService {
@@ -33,14 +34,14 @@ public class DishExcelImportService {
     private String excelFilePath;
 
     // -----------------------------------------------------------------------
-    // Asosiy import metodi — Excel fayldan Dish ro'yxatini o'qiydi
+    // Asosiy import: Excel fayldan Dish ro'yxatini o'qiydi
     // -----------------------------------------------------------------------
     public List<Dish> importFromExcel() {
         File file = new File(excelFilePath);
         if (!file.exists()) {
-            log.warn("dishes.xlsx topilmadi: {}. Namuna fayl yaratilmoqda...", file.getAbsolutePath());
+            log.warn("📂 dishes.xlsx topilmadi: {}", file.getAbsolutePath());
+            log.warn("   Namuna fayl yaratilmoqda — keyin uni o'zingiz to'ldirib qayta ishga tushiring.");
             createSampleExcel(file);
-            return importFromExcel(); // qayta o'qish
         }
 
         List<Dish> dishes = new ArrayList<>();
@@ -50,25 +51,23 @@ public class DishExcelImportService {
 
             Sheet sheet = workbook.getSheetAt(0);
             int lastRow = sheet.getLastRowNum();
-            log.info("Excel fayldan {} qator o'qilmoqda...", lastRow);
+            log.info("📖 Excel fayl o'qilmoqda: {} qator topildi", lastRow);
 
-            for (int i = 1; i <= lastRow; i++) { // i=0 — header, o'tkazib yuboramiz
+            for (int i = 1; i <= lastRow; i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
 
                 Dish dish = mapRowToDish(row, i + 1);
                 if (dish != null) {
                     dishes.add(dish);
-                    log.debug("  ✅ Qator {}: {} ({})", i + 1, dish.getName(), dish.getCategory());
-                } else {
-                    log.debug("  ⚠️ Qator {} o'tkazib yuborildi (noto'g'ri ma'lumot)", i + 1);
+                    log.debug("  ✅ {}: {} ({})", i + 1, dish.getName(), dish.getCategory());
                 }
             }
 
             log.info("✅ Exceldan {} ta taom muvaffaqiyatli o'qildi", dishes.size());
 
         } catch (IOException e) {
-            log.error("Excel faylni o'qishda xato: {}", e.getMessage());
+            log.error("❌ Excel faylni o'qishda xato: {}", e.getMessage());
         }
 
         return dishes;
@@ -108,27 +107,32 @@ public class DishExcelImportService {
             String name = getCellValue(row.getCell(0));
             String categoryRaw = getCellValue(row.getCell(1));
             String photoUrl = getCellValue(row.getCell(2));
-            String description = row.getCell(3) != null ? getCellValue(row.getCell(3)) : "";
+            String description = getCellValue(row.getCell(3));
 
-            // Majburiy maydonlarni tekshirish
-            if (name.isBlank()) {
-                log.warn("Qator {}: name bo'sh — o'tkazib yuborildi", rowNumber);
-                return null;
-            }
-            if (name.startsWith("[") || name.startsWith("#")) {
-                // Template yoki izoh qatori
+            // Bo'sh yoki izoh qatorni o'tkazib yuborish
+            if (name.isBlank() || name.startsWith("#") || name.startsWith("[")) {
                 return null;
             }
 
-            // Kategoriyani tekshirish va normallashtirish
+            // Majburiy maydonlar
+            if (categoryRaw.isBlank()) {
+                log.warn("⚠️ Qator {}: category bo'sh — '{}' o'tkazib yuborildi", rowNumber, name);
+                return null;
+            }
+            if (photoUrl.isBlank()) {
+                log.warn("⚠️ Qator {}: photoUrl bo'sh — '{}' o'tkazib yuborildi", rowNumber, name);
+                return null;
+            }
+            if (description.isBlank()) {
+                log.warn("⚠️ Qator {}: description bo'sh — '{}' o'tkazib yuborildi", rowNumber, name);
+                return null;
+            }
+
+            // Kategoriyani aniqlash
             VoteCategory category = resolveCategory(categoryRaw);
             if (category == null) {
-                log.warn("Qator {}: noto'g'ri kategoriya '{}' — o'tkazib yuborildi", rowNumber, categoryRaw);
-                return null;
-            }
-
-            if (photoUrl.isBlank()) {
-                log.warn("Qator {}: photoUrl bo'sh — taom '{}' qo'shilmaydi", rowNumber, name);
+                log.warn("⚠️ Qator {}: noto'g'ri kategoriya '{}' — '{}' o'tkazib yuborildi",
+                        rowNumber, categoryRaw, name);
                 return null;
             }
 
@@ -147,9 +151,7 @@ public class DishExcelImportService {
         }
     }
 
-    // -----------------------------------------------------------------------
-    // Kategoriyani aniqlash: BREAKFAST / Nonushta / breakfast → VoteCategory
-    // -----------------------------------------------------------------------
+    // BREAKFAST / Nonushta / breakfast → VoteCategory
     private VoteCategory resolveCategory(String raw) {
         if (raw == null || raw.isBlank()) return null;
         String s = raw.trim().toUpperCase();
@@ -161,9 +163,6 @@ public class DishExcelImportService {
         };
     }
 
-    // -----------------------------------------------------------------------
-    // Cell qiymatini xavfsiz o'qish
-    // -----------------------------------------------------------------------
     private String getCellValue(Cell cell) {
         if (cell == null) return "";
         return switch (cell.getCellType()) {
@@ -179,15 +178,14 @@ public class DishExcelImportService {
     }
 
     // -----------------------------------------------------------------------
-    // Namuna Excel fayl yaratish (faylni birinchi marta ishga tushirganda)
+    // Namuna Excel fayl yaratish (bo'sh template)
     // -----------------------------------------------------------------------
     public void createSampleExcel(File file) {
-        file.getParentFile().mkdirs();
+        if (file.getParentFile() != null) file.getParentFile().mkdirs();
 
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet sheet = wb.createSheet("Dishes");
 
-            // Header uslubi
             CellStyle headerStyle = wb.createCellStyle();
             Font headerFont = wb.createFont();
             headerFont.setBold(true);
@@ -195,7 +193,6 @@ public class DishExcelImportService {
             headerStyle.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
             headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
 
-            // Header qatori
             Row header = sheet.createRow(0);
             String[] headers = {"name", "category", "photoUrl", "description"};
             for (int i = 0; i < headers.length; i++) {
@@ -204,17 +201,17 @@ public class DishExcelImportService {
                 cell.setCellStyle(headerStyle);
             }
 
-            // Namuna ma'lumotlar
+            // Boshlang'ich namuna ma'lumotlar — sen o'zing o'zgartirasen
             Object[][] samples = {
-                {"Shirguruch",       "BREAKFAST", "https://example.com/shirguruch.jpg",  "Sut bilan pishirilgan shirin guruch"},
-                {"Mannaya kasha",    "BREAKFAST", "https://example.com/kasha.jpg",       "Sariyog' va murabbo bilan"},
-                {"Qovurilgan tuxum", "BREAKFAST", "https://example.com/tuxum.jpg",       "Yangi ko'katlar bilan"},
-                {"Lag'mon",          "LUNCH",     "https://example.com/lagmon.jpg",       "Go'sht va sabzavotli sho'rva"},
-                {"Mastava",          "LUNCH",     "https://example.com/mastava.jpg",      "Qo'y go'shti bilan guruch sho'rvasi"},
-                {"Chuchvara",        "LUNCH",     "https://example.com/chuchvara.jpg",    "Go'shtli qiyma bilan"},
-                {"Somsa",            "SNACK",     "https://example.com/somsa.jpg",        "Kartoshkali krujkali somsa"},
-                {"Pitsa",            "SNACK",     "https://example.com/pitsa.jpg",        "Mini pitsa bo'laklari"},
-                {"Sinabon",          "SNACK",     "https://example.com/sinabon.jpg",      "Darchinli bulochka"},
+                {"Shirguruch",       "BREAKFAST", "https://example.com/shirguruch.jpg", "Sut bilan pishirilgan shirin guruch"},
+                {"Mannaya kasha",    "BREAKFAST", "https://example.com/kasha.jpg",      "Sariyog' va murabbo bilan"},
+                {"Qovurilgan tuxum", "BREAKFAST", "https://example.com/tuxum.jpg",      "Yangi ko'katlar bilan"},
+                {"Lag'mon",          "LUNCH",     "https://example.com/lagmon.jpg",     "Go'sht va sabzavotli sho'rva"},
+                {"Mastava",          "LUNCH",     "https://example.com/mastava.jpg",    "Qo'y go'shti bilan guruch sho'rvasi"},
+                {"Chuchvara",        "LUNCH",     "https://example.com/chuchvara.jpg",  "Go'shtli qiyma bilan"},
+                {"Somsa",            "SNACK",     "https://example.com/somsa.jpg",      "Kartoshkali krujkali somsa"},
+                {"Pitsa",            "SNACK",     "https://example.com/pitsa.jpg",      "Mini pitsa bo'laklari"},
+                {"Sinabon",          "SNACK",     "https://example.com/sinabon.jpg",    "Darchinli bulochka"},
             };
 
             for (int i = 0; i < samples.length; i++) {
@@ -224,7 +221,6 @@ public class DishExcelImportService {
                 }
             }
 
-            // Ustun kengliklarini avtomatik moslash
             for (int i = 0; i < headers.length; i++) {
                 sheet.autoSizeColumn(i);
             }

@@ -37,3 +37,8 @@ build/
 *.env
 application-local.properties
 application-prod.properties
+
+### Excel data fayli (har birovning o'z lokal versiyasi) ###
+# Excel template git da bor (excel/dishes.xlsx.template)
+# Lokal fayl esa har birovniki o'ziga xos
+excel/dishes.xlsx
